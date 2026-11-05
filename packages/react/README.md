@@ -51,3 +51,11 @@ The optional `onPerformance({phase,elapsedMs,styleUrl})` callback reports style-
 `applyVectorTheme` caches style-layer classifications and only writes paint properties whose requested colors changed. Cache is invalidated when the MapLibre style reloads.
 
 A large map dataset should use clustered GeoJSON/vector layers rather than thousands of individual DOM markers. The current React adapter optimizes ordinary marker lists but is not a point-cloud renderer.
+
+### Adaptive resolution scaling
+
+The vector adapter now supports `adaptiveResolution={true}` (default). During sustained camera motion (pan, pinch, scroll zoom or programmatic camera animations), Atlas temporarily caps canvas density at **1.0×**. After movement finishes and a short debounce, it restores the selected `renderQuality` baseline (Balanced = up to 1.5×, High = device DPR).
+
+There is a 70 ms movement threshold to avoid expensive canvas reallocations for tiny transitions and a 180 ms restoration delay to avoid flicker between closely spaced gestures. MapLibre's `setPixelRatio` calls `resize`, which also emits camera events, so Atlas guards against re-entrant event loops. It uses no per-frame React state or `requestAnimationFrame` loop.
+
+Set `adaptiveResolution={false}` to preserve constant pixel density. Optional `onResolutionChange={({phase,pixelRatio})=>...}` exposes the actual chosen canvas ratio for debugging. This changes only the GPU framebuffer resolution; basemap detail, label sources, zoom, and exported data are unchanged.

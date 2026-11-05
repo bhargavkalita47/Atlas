@@ -6,6 +6,8 @@ import {
 import type { LatLng, MarkerData, Shape } from "@atlas/core";
 import { escapeHtml, safeHex, validPoint } from "@atlas/core";
 import type { AtlasMapHandle, ViewState } from "./index";
+import {basePixelRatio,createAdaptiveResolutionController,type AdaptiveResolutionController,type ResolutionState} from "./adaptiveResolution";
+export type {ResolutionState} from "./adaptiveResolution";
 
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type VectorPerformanceEvent} from "./vectorConfig";
 export {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES} from "./vectorConfig";
@@ -91,6 +93,10 @@ export interface AtlasVectorMapProps {
   onError?: (message: string) => void;
   /** Balanced caps pixel density; high preserves full device resolution. */
   renderQuality?: "balanced" | "high";
+  /** Reduce canvas resolution during sustained camera motion; defaults to true. */
+  adaptiveResolution?: boolean;
+  /** Reports actual resolution changes; useful for debugging and benchmarks. */
+  onResolutionChange?: (state:ResolutionState) => void;
   /** First style-ready and first fully-idle durations, reset on style switches. */
   onPerformance?: (event:VectorPerformanceEvent) => void;
   className?: string;
@@ -177,7 +183,8 @@ type ManagedMarker = {
 export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(function AtlasVectorMap({
   center, zoom=13, styleUrl=KEYLESS_VECTOR_STYLES.liberty,
   theme,markers,shapes,selectedId,onSelect,onDrag,onClick,
-  onViewChange,onReady,onError,onPerformance,renderQuality="balanced",className,style,
+  onViewChange,onReady,onError,onPerformance,onResolutionChange,
+  renderQuality="balanced",adaptiveResolution=true,className,style,
 },ref){
   const host=useRef<HTMLDivElement>(null);
   const map=useRef<MapLibreMap|null>(null);
@@ -185,13 +192,14 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   const currentStyleUrl=useRef(styleUrl);
   const restartStyleWatchdog=useRef<(()=>void)|null>(null);
   const reportFatalStyleError=useRef<((message:string)=>void)|null>(null);
-  const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance});
-  latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance};
+  const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance,onResolutionChange});
+  latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance,onResolutionChange};
   const shapesRef=useRef(shapes);
   shapesRef.current=shapes;
   const themeRef=useRef(theme);
   themeRef.current=theme;
   const qualityRef=useRef(renderQuality);
+  const resolutionController=useRef<AdaptiveResolutionController|null>(null);
 
   useEffect(()=>{
     if(!host.current)return;
@@ -227,8 +235,7 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
         zoom,
         maxZoom:19,
         // A 3x DPR phone otherwise renders about 4x as many pixels as 1.5x.
-        pixelRatio:qualityRef.current==="balanced"?
-          Math.min(window.devicePixelRatio||1,1.5):undefined,
+        pixelRatio:basePixelRatio(qualityRef.current,window.devicePixelRatio||1),
         fadeDuration:0,
         renderWorldCopies:false,
         trackResize:false,
@@ -238,6 +245,11 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       return;
     }
     map.current=instance;
+    resolutionController.current=createAdaptiveResolutionController(instance,{
+      quality:qualityRef.current,
+      enabled:adaptiveResolution,
+      onChange:state=>latest.current.onResolutionChange?.(state),
+    });
     restartStyleWatchdog.current=armWatchdog;
     reportFatalStyleError.current=fail;
     const emit=()=>latest.current.onViewChange?.(viewOf(instance));
@@ -296,6 +308,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     return()=>{
       disposed=true;
       if(watchdog)clearTimeout(watchdog);
+      resolutionController.current?.dispose();
+      resolutionController.current=null;
       restartStyleWatchdog.current=null;
       reportFatalStyleError.current=null;
       observer?.disconnect();
@@ -322,14 +336,11 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     }
   },[styleUrl]);
 
-  // Pixel density can be adjusted at runtime without rebuilding the map.
+  // Update quality/motion policy without rebuilding the map or losing its view.
   useEffect(()=>{
-    if(qualityRef.current===renderQuality)return;
     qualityRef.current=renderQuality;
-    map.current?.setPixelRatio(renderQuality==="balanced"
-      ? Math.min(window.devicePixelRatio||1,1.5)
-      : window.devicePixelRatio||1);
-  },[renderQuality]);
+    resolutionController.current?.update({quality:renderQuality,enabled:adaptiveResolution});
+  },[renderQuality,adaptiveResolution]);
 
   // The style.load handler re-applies the most recent theme after a style
   // change, including changes requested while style data was still loading.

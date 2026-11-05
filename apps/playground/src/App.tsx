@@ -103,6 +103,8 @@ export default function App(){
   const [vectorError,setVectorError]=useState<string|null>(null);
   const [vectorStyle,setVectorStyle]=useState<keyof typeof KEYLESS_VECTOR_STYLES>("positron");
   const [quality,setQuality]=useState<"balanced"|"high">("balanced");
+  const [adaptiveResolution,setAdaptiveResolution]=useState(true);
+  const [resolutionState,setResolutionState]=useState<{phase:"moving"|"idle";pixelRatio:number}|null>(null);
   const [vectorPerformance,setVectorPerformance]=useState<{style?:number;idle?:number}>({});
   const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...DEFAULT_VECTOR_THEME});
   const [baseId,setBaseId]=useState("standard");
@@ -368,7 +370,11 @@ export default function App(){
                   <button className={quality==="balanced"?"selected":""} onClick={()=>setQuality("balanced")}>Balanced · faster</button>
                   <button className={quality==="high"?"selected":""} onClick={()=>setQuality("high")}>High · sharper</button>
                 </div>
-                <div className="muted-tip">Balanced limits pixel density to 1.5× on high-DPI screens. High uses your device's full resolution. Map styles and geographical detail remain editable.</div>
+                <button className="secondary-button" aria-pressed={adaptiveResolution}
+                  onClick={()=>setAdaptiveResolution(value=>!value)}>
+                  Dynamic resolution scaling: {adaptiveResolution?"On":"Off"}
+                </button>
+                <div className="muted-tip">When enabled, Atlas lowers the canvas resolution during sustained pan and zoom, then restores your selected Balanced or High quality once motion ends. Map tiles and map detail are unchanged.</div>
               </section>}
               {renderer==="vector"&&<>
                 <section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
@@ -445,6 +451,7 @@ export default function App(){
                   {vectorError&&<div className="muted-tip">Previous vector error: {vectorError}</div>}
                   {vectorPerformance.style!==undefined&&<div className="muted-tip">Vector style ready: {vectorPerformance.style} ms</div>}
                   {vectorPerformance.idle!==undefined&&<div className="muted-tip">Vector fully idle: {vectorPerformance.idle} ms</div>}
+                  {renderer==="vector"&&resolutionState&&<div className="muted-tip">Canvas resolution: {resolutionState.pixelRatio.toFixed(2)}× · {resolutionState.phase}</div>}
                 </div>
                 {renderer==="raster"&&<button className="secondary-button" style={{marginTop:10}} onClick={()=>{
                   setVectorError(null);
@@ -481,6 +488,8 @@ export default function App(){
               styleUrl={KEYLESS_VECTOR_STYLES[vectorStyle]}
               theme={vectorTheme}
               renderQuality={quality}
+              adaptiveResolution={adaptiveResolution}
+              onResolutionChange={setResolutionState}
               onPerformance={captureVectorMetric}
               markers={visibleMarkers}
               shapes={visibleShapes}
