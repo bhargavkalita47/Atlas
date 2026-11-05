@@ -17,8 +17,8 @@
       "import": "./dist/vector.js"
     },
     "./vector-config": {
-      "types": "./dist/vector-config.d.ts",
-      "import": "./dist/vector-config.js"
+      "types": "./dist/vectorConfig.d.ts",
+      "import": "./dist/vectorConfig.js"
     }
   },
   "files": [
@@ -26,7 +26,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.tsx --format esm,cjs --dts --clean && tsup src/vector.ts src/vector-config.ts --format esm --dts",
+    "build": "tsup src/index.tsx --format esm,cjs --dts --clean && tsup src/vector.ts src/vectorConfig.ts --format esm --dts",
     "test": "vitest run"
   },
   "dependencies": {
