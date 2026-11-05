@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   createPhotonGeocoder,formatDistance,haversineKm,
-  parseCoordinatePair,pathLengthKm,validPoint,type LatLng,
+  parseCoordinatePair,pathLengthKm,validPoint,toAtlasGeoJSON,parseAtlasGeoJSON,type LatLng,
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
 import {AtlasMap,MarkerLayer,ShapeLayer,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
@@ -78,18 +78,6 @@ function downloadText(name:string,content:string){
   a.href=url;a.download=name;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function toGeoJSON(markers:MarkerData[],shapes:Shape[]){
-  const features:unknown[]=[
-    ...markers.map(p=>({type:"Feature",geometry:{type:"Point",coordinates:[p.point.lng,p.point.lat]},properties:{id:p.id,name:p.title,color:p.color}})),
-    ...shapes.map(s=>s.kind==="circle"
-      ? {type:"Feature",geometry:{type:"Point",coordinates:[s.center.lng,s.center.lat]},properties:{id:s.id,name:s.label,color:s.color,kind:"circle",radiusMeters:s.radiusMeters}}
-      : {type:"Feature",geometry:{type:s.kind==="polygon"?"Polygon":"LineString",coordinates:s.kind==="polygon"
-        ? [s.points.concat(s.points[0]??[]).map(p=>[p.lng,p.lat])]
-        : s.points.map(p=>[p.lng,p.lat])},properties:{id:s.id,name:s.label,color:s.color,kind:s.kind}}
-    )
-  ];
-  return JSON.stringify({type:"FeatureCollection",features},null,2);
-}
 export default function App(){
   const map=useRef<AtlasMapHandle>(null);
   const geocoder=useMemo(()=>createPhotonGeocoder(),[]);
@@ -104,6 +92,7 @@ export default function App(){
   const [markerColor,setMarkerColor]=useState("#5365da");
   const [circleRadius,setCircleRadius]=useState(350);
   const [renderer,setRenderer]=useState<"vector"|"raster">("vector");
+  const [vectorError,setVectorError]=useState<string|null>(null);
   const [vectorStyle,setVectorStyle]=useState<keyof typeof KEYLESS_VECTOR_STYLES>("liberty");
   const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...DEFAULT_VECTOR_THEME});
   const [baseId,setBaseId]=useState("standard");
@@ -209,48 +198,24 @@ export default function App(){
     try{await navigator.clipboard.writeText(coordinateText(p));alert("Coordinates copied");}
     catch{alert("Clipboard unavailable; select the coordinates manually.");}
   };
-  const exportGeo=()=>{downloadText("atlas-lab.geojson",toGeoJSON(markers,shapes));log("Exported GeoJSON");};
+  const exportGeo=()=>{
+    downloadText("atlas-lab.geojson",JSON.stringify(toAtlasGeoJSON(markers,shapes),null,2));
+    log("Exported GeoJSON via Atlas Core");
+  };
   const importGeo=async(file:File)=>{
     if(file.size>2_000_000){alert("GeoJSON file too large (max 2 MB).");return;}
     try{
-      const data:unknown=JSON.parse(await file.text());
-      if(!data||typeof data!=="object")throw new Error("Invalid JSON.");
-      const doc=data as {type?:unknown;features?:unknown};
-      if(doc.type!=="FeatureCollection"||!Array.isArray(doc.features))throw new Error("Expected a GeoJSON FeatureCollection.");
-      const pins:MarkerData[]=[],drawn:Shape[]=[];
-      for(const raw of doc.features.slice(0,250)){
-        if(!raw||typeof raw!=="object")continue;
-        const f=raw as {geometry?:{type?:string;coordinates?:unknown};properties?:Record<string,unknown>};
-        const g=f.geometry,p=f.properties??{};
-        const name=typeof p.name==="string"?p.name.slice(0,120):"Imported feature";
-        const color=typeof p.color==="string"&&/^#[0-9a-f]{6}$/i.test(p.color)?p.color:markerColor;
-        const pointFrom=(v:unknown):LatLng|null=>{
-          if(!Array.isArray(v)||v.length<2)return null;
-          const point={lat:v[1],lng:v[0]};
-          return validPoint(point)?point:null;
-        };
-        if(g?.type==="Point"){
-          const pt=pointFrom(g.coordinates);if(!pt)continue;
-          if(p.kind==="circle"&&typeof p.radiusMeters==="number"&&p.radiusMeters>0&&p.radiusMeters<=100000){
-            drawn.push({id:nextId(),kind:"circle",center:pt,radiusMeters:p.radiusMeters,color,label:name});
-          }else pins.push({id:nextId(),point:pt,title:name,color,draggable:true});
-        }
-        if(g?.type==="LineString"||g?.type==="Polygon"){
-          const rawCoords=g.type==="Polygon"&&Array.isArray(g.coordinates)?g.coordinates[0]:g.coordinates;
-          if(!Array.isArray(rawCoords))continue;
-          const coords=rawCoords.map(pointFrom).filter((pt):pt is LatLng=>pt!==null).slice(0,300);
-          const kind=g.type==="Polygon"?"polygon":"polyline";
-          if(coords.length>=(kind==="polygon"?3:2)){
-            drawn.push({id:nextId(),kind,points:coords,color,label:name});
-          }
-        }
-      }
+      const raw:unknown=JSON.parse(await file.text());
+      const {markers:pins,shapes:drawn,skipped}=parseAtlasGeoJSON(raw,{
+        maxFeatures:250,defaultColor:markerColor,idFactory:()=>nextId()
+      });
       setMarkers(s=>[...s,...pins].slice(0,300));
       setShapes(s=>[...s,...drawn].slice(0,300));
-      alert("Imported "+pins.length+" pins and "+drawn.length+" shapes.");
+      alert("Imported "+pins.length+" pins and "+drawn.length+" shapes."+
+        (skipped?" Skipped "+skipped+" invalid or excess features.":""));
       const points=[...pins.map(p=>p.point),...drawn.map(s=>s.kind==="circle"?s.center:s.points[0]!)];
       if(points.length)map.current?.fitTo(points);
-    }catch(e){alert(e instanceof Error?e.message:"Invalid GeoJSON file.");}
+    }catch(error){alert(error instanceof Error?error.message:"Invalid GeoJSON file.");}
   };
   const clearAll=()=>{
     if(!window.confirm("Clear all Atlas Lab pins and shapes?"))return;
@@ -266,14 +231,16 @@ export default function App(){
       ["Markers are valid",markers.every(m=>validPoint(m.point))],
       ["Shape data is valid",shapes.every(s=>s.kind==="circle"?validPoint(s.center):s.points.every(validPoint))],
       ["Tiles configured",tile.url.includes("{z}")&&tile.url.includes("{x}")&&tile.url.includes("{y}")],
-      ["Geometry export",JSON.parse(toGeoJSON(markers,shapes)).type==="FeatureCollection"]
+      ["Geometry export",toAtlasGeoJSON(markers,shapes).type==="FeatureCollection"]
     ] as const;
     setDiagnosticResult(cases.map(([name,ok])=>(ok?"PASS":"FAIL")+" — "+name));
     alert(cases.filter(([,ok])=>ok).length+"/"+cases.length+" in-browser smoke checks passed");
   };
   const selectedMarker=markers.find(m=>m.id===selected);
-  const draftShape:Shape[]=draft.length>=2 && (mode==="line"||mode==="measure"||mode==="polygon")
-    ? [{id:"draft",kind:"polyline",points:draft,color:"#ed955a",label:"Drawing in progress"}]:[];
+  const draftShape=useMemo<Shape[]>(()=>draft.length>=2 && (mode==="line"||mode==="measure"||mode==="polygon")
+    ? [{id:"draft",kind:"polyline",points:draft,color:"#ed955a",label:"Drawing in progress"}]:[],[draft,mode]);
+  const visibleMarkers=useMemo(()=>showMarkers?markers:[],[showMarkers,markers]);
+  const visibleShapes=useMemo(()=>showShapes?[...shapes,...draftShape]:[],[showShapes,shapes,draftShape]);
   const activeItem=NAV.find(n=>n.id===tab)!;
   return <div className="app">
     {mobileMenu&&<button className="mobile-scrim" aria-label="Close navigation" onClick={()=>setMobileMenu(false)}/>}
@@ -449,7 +416,17 @@ export default function App(){
                 <button className="primary-button" onClick={tests}><Activity size={17}/> Run browser smoke checks</button>
                 {diagnosticResult.length>0&&<div className="test-results">{diagnosticResult.map(row=><div key={row} className={row.startsWith("PASS")?"passed":"failed"}>{row.startsWith("PASS")?<CheckCircle2 size={16}/>:<X size={16}/>}<span>{row.split(" — ")[1]}</span></div>)}</div>}
               </section>
-              <section className="pane-section"><div className="section-label">DATA INTERCHANGE</div>
+                            <section className="pane-section"><div className="section-label">VECTOR RENDERER</div>
+                <div className="detail-card">
+                  <span>Active renderer</span><strong>{renderer==="vector"?"MapLibre GL JS":"Leaflet raster"}</strong>
+                  {vectorError&&<div className="muted-tip">Previous vector error: {vectorError}</div>}
+                </div>
+                {renderer==="raster"&&<button className="secondary-button" style={{marginTop:10}} onClick={()=>{
+                  setVectorError(null);
+                  setRenderer("vector");
+                }}>Retry vector map</button>}
+              </section>
+<section className="pane-section"><div className="section-label">DATA INTERCHANGE</div>
                 <div className="button-stack">
                   <button className="secondary-button" onClick={exportGeo}><Download size={17}/> Export GeoJSON</button>
                   <button className="secondary-button" onClick={()=>importRef.current?.click()}><Upload size={17}/> Import GeoJSON</button>
@@ -473,16 +450,20 @@ export default function App(){
               zoom={view?.zoom??13}
               styleUrl={KEYLESS_VECTOR_STYLES[vectorStyle]}
               theme={vectorTheme}
-              markers={showMarkers?markers:[]}
-              shapes={showShapes?[...shapes,...draftShape]:[]}
+              markers={visibleMarkers}
+              shapes={visibleShapes}
               selectedId={selected}
               className="lab-map"
               onClick={handleMapClick}
               onViewChange={setView}
               onSelect={id=>{setSelected(id);log("Selected pin "+id);}}
               onDrag={(id,point)=>{setMarkers(prev=>prev.map(m=>m.id===id?{...m,point}:m));log("Pin moved to "+coordinateText(point));}}
-              onReady={()=>log("Vector map ready")}
-              onError={(message)=>{setRenderer("raster");alert("Vector tiles unavailable; switched to OSM raster. "+message);}}
+              onReady={()=>{setVectorError(null);log("Vector map ready");}}
+              onError={(message)=>{
+                setVectorError(message);
+                setRenderer("raster");
+                alert("Vector renderer unavailable; switched to OSM raster. "+message);
+              }}
             />
           :<AtlasMap
             ref={map}
@@ -495,8 +476,8 @@ export default function App(){
             onViewChange={setView}
             onReady={()=>log("Map ready")}
           >
-            {showMarkers&&<MarkerLayer markers={markers} selectedId={selected} onSelect={id=>{setSelected(id);log("Selected pin "+id);}} onDrag={(id,point)=>{setMarkers(s=>s.map(m=>m.id===id?{...m,point}:m));log("Pin moved to "+coordinateText(point));}}/>}
-            {showShapes&&<ShapeLayer shapes={[...shapes,...draftShape]}/>}
+            {showMarkers&&<MarkerLayer markers={visibleMarkers} selectedId={selected} onSelect={id=>{setSelected(id);log("Selected pin "+id);}} onDrag={(id,point)=>{setMarkers(s=>s.map(m=>m.id===id?{...m,point}:m));log("Pin moved to "+coordinateText(point));}}/>}
+            {showShapes&&<ShapeLayer shapes={visibleShapes}/>} 
           </AtlasMap>}
 
           <div className="map-search-wrap">
