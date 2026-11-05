@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties } from "react";
 import {
   Map as MapLibreMap, Marker as MapLibreMarker,
-  type StyleSpecification,
+  type GeoJSONSource,
 } from "maplibre-gl";
 import type { LatLng, MarkerData, Shape } from "@atlas/core";
 import { escapeHtml, safeHex, validPoint } from "@atlas/core";
@@ -172,7 +172,6 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       style:styleUrl,
       center:[center.lng,center.lat],
       zoom,
-      attributionControl:true,
       maxZoom:19,
     });
     map.current=instance;
@@ -189,16 +188,16 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     instance.on("load",()=>{
       loaded=true;
       installShapeLayers(instance);
-      const source=instance.getSource(shapeSource);
-      if (source?.type === "geojson") source.setData(asGeoJson(shapesRef.current));
+      const source=instance.getSource(shapeSource) as GeoJSONSource | undefined;
+      source?.setData(asGeoJson(shapesRef.current));
       applyVectorTheme(instance,themeRef.current);
       emit();
       latest.current.onReady?.();
     });
     instance.on("style.load",()=>{
       installShapeLayers(instance);
-      const source=instance.getSource(shapeSource);
-      if (source?.type==="geojson") source.setData(asGeoJson(shapesRef.current));
+      const source=instance.getSource(shapeSource) as GeoJSONSource | undefined;
+      source?.setData(asGeoJson(shapesRef.current));
       applyVectorTheme(instance,themeRef.current);
     });
     const resize=new ResizeObserver(()=>instance.resize());
@@ -222,8 +221,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   useEffect(()=>{
     const instance=map.current;
     if(!instance || !instance.isStyleLoaded()) return;
-    const source=instance.getSource(shapeSource);
-    if(source?.type==="geojson") source.setData(asGeoJson(shapes));
+    const source=instance.getSource(shapeSource) as GeoJSONSource | undefined;
+    source?.setData(asGeoJson(shapes));
   },[shapes,styleUrl]);
   useEffect(()=>{
     const instance=map.current;
