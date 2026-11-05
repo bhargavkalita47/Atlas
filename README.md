@@ -32,7 +32,16 @@ A root `wrangler.jsonc` serves the playground as static assets. Connect this rep
 - Build output directory (Pages): `apps/playground/dist`
 - Root directory: repository root
 
-For Workers, deploy `npx wrangler deploy` after building.
+For Workers, deploy `npx wrangler deploy` after building **only from the production branch**.
+
+For the isolated `dev/stabilization` branch, the configured Cloudflare build uses `npx wrangler preview` rather than a production deploy. The root `wrangler.jsonc` includes a required `"previews": {}` block. This is supported by Wrangler 4.135.0+ and allows separate previews without overwriting production. If deploying manually on that branch:
+
+```sh
+npm run build
+npx wrangler preview
+```
+
+The Cloudflare Workers build configuration should use `npm run build` as build command, and `npx wrangler preview` as preview deploy command. Public tile/geocoder endpoints still have separate usage policies.
 
 ## Features available in the current preview
 
