@@ -27,7 +27,9 @@ function categorize(id: string, sourceLayer: string | undefined, layerType: stri
       /transportation/.test(source)) return "roads";
   return null;
 }
-type ThemeBinding = {id:string; property:string; category:EditableCategory};
+type ThemePaintProperty=
+  | "background-color" | "fill-color" | "line-color" | "text-color" | "fill-extrusion-color";
+type ThemeBinding = {id:string; property:ThemePaintProperty; category:EditableCategory};
 const themeState = new WeakMap<MapLibreMap, {bindings:ThemeBinding[]; colors:Map<string,string>}>();
 
 /** Call when a new MapLibre style has loaded: its layers are new objects. */
@@ -43,7 +45,7 @@ function resolveThemeBindings(map:MapLibreMap):{bindings:ThemeBinding[];colors:M
     const sourceLayer="source-layer" in layer?layer["source-layer"]:undefined;
     const category=categorize(layer.id,sourceLayer,layer.type);
     if(!category)continue;
-    const property=layer.type==="background"?"background-color"
+    const property:ThemePaintProperty|null=layer.type==="background"?"background-color"
       :layer.type==="fill"?"fill-color"
       :layer.type==="line"?"line-color"
       :layer.type==="symbol"?"text-color"
