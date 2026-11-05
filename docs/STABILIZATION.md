@@ -40,3 +40,13 @@ npm run dev
 ```
 
 Do not merge until both CI and manual deployment verification are satisfactory.
+
+## Step 1b: vector performance hardening
+
+- Vector renderer and MapLibre worker now load as a lazy browser chunk; the initial app shell can render before WebGL imports.
+- Default Atlas Lab vector preset is Positron (minimal) instead of Liberty (detailed). Switching to Liberty remains possible.
+- Balanced/high pixel-density mode; balanced defaults to a max 1.5× pixel ratio for high-DPI devices.
+- No duplicate world copies, no tile fade, and selective theme paint updates with cached layer classification.
+- Atlas Lab diagnostics now show first style-ready and first-idle durations in milliseconds for real browsers.
+- Performance is still dependent on vector tile/glyph CDN latency and GPU/CPU capability. No server-side performance guarantee is implied.
+- Verify the built asset split in GitHub/Cloudflare build output; inspect Network requests on the deployed preview before comparing actual speed.

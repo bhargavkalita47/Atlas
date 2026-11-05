@@ -1,5 +1,5 @@
 import { describe,it,expect,vi } from "vitest";
-import { applyVectorTheme, DEFAULT_VECTOR_THEME, KEYLESS_VECTOR_STYLES } from "./VectorMap";
+import { applyVectorTheme, invalidateVectorThemeCache, DEFAULT_VECTOR_THEME, KEYLESS_VECTOR_STYLES } from "./VectorMap";
 import type { Map as MapLibreMap } from "maplibre-gl";
 
 describe("Atlas keyless vector configuration",()=>{
@@ -42,6 +42,28 @@ describe("Atlas theme compiler",()=>{
     expect(paint).toHaveBeenCalledWith("road-main","line-color","#444444");
     expect(paint).toHaveBeenCalledWith("place-city-label","text-color","#666666");
     expect(paint.mock.calls.some(args=>args[0]==="unclassified")).toBe(false);
+  });
+  it("only repaints changed colors and caches layer classifications",()=>{
+    const map=mockMap();
+    applyVectorTheme(map,DEFAULT_VECTOR_THEME);
+    const getStyle=vi.mocked(map.getStyle);
+    const paint=vi.mocked(map.setPaintProperty);
+    expect(paint).toHaveBeenCalledTimes(6);
+    paint.mockClear();
+
+    applyVectorTheme(map,{...DEFAULT_VECTOR_THEME});
+    expect(paint).not.toHaveBeenCalled();
+    expect(getStyle).toHaveBeenCalledTimes(1);
+
+    applyVectorTheme(map,{...DEFAULT_VECTOR_THEME,water:"#aabbcc"});
+    expect(paint).toHaveBeenCalledTimes(1);
+    expect(paint).toHaveBeenCalledWith("natural-water","fill-color","#aabbcc");
+
+    invalidateVectorThemeCache(map);
+    paint.mockClear();
+    applyVectorTheme(map,DEFAULT_VECTOR_THEME);
+    expect(getStyle).toHaveBeenCalledTimes(2);
+    expect(paint).toHaveBeenCalledTimes(6);
   });
   it("ignores invalid colors rather than inserting CSS expressions",()=>{
     const map=mockMap();

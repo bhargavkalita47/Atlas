@@ -39,3 +39,15 @@ The `center` and `zoom` props specify the **initial map view**. Use `AtlasMapHan
 Marker and shape props accept read-only arrays. Replace or create data with stable IDs; Atlas reconciles individual marker elements and preserves the rest.
 
 The `@atlas/react` package is currently developed as a monorepo workspace and **has not been published to npm**. Before public publishing, choose and verify an npm scope you control.
+
+### Startup and device performance
+
+The vector adapter is optional. In a Vite application, load the MapLibre entry point with `React.lazy` (Atlas Lab uses `apps/playground/src/VectorMapLoader.tsx`) so Leaflet-only pages never download WebGL code. The Vite worker URL must be registered **inside** the loaded module before the renderer is created.
+
+`AtlasVectorMap` accepts `renderQuality="balanced" | "high"`. Balanced (the default) caps the canvas device-pixel ratio to **1.5** on very dense screens; High preserves the device's full resolution. Neither changes the geographic data or tile style. The renderer also disables unused world-copy rendering and unnecessary tile cross-fade.
+
+The optional `onPerformance({phase,elapsedMs,styleUrl})` callback reports style-ready and first-idle timings. First idle includes the tile and glyph load for the current view. Use it in production preview comparisons rather than relying on fast synthetic unit tests. Atlas Lab exposes these values in Diagnostics.
+
+`applyVectorTheme` caches style-layer classifications and only writes paint properties whose requested colors changed. Cache is invalidated when the MapLibre style reloads.
+
+A large map dataset should use clustered GeoJSON/vector layers rather than thousands of individual DOM markers. The current React adapter optimizes ordinary marker lists but is not a point-cloud renderer.

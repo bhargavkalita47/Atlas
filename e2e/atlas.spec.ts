@@ -50,6 +50,8 @@ test("vector map initializes a worker, renders pins, and applies a new style",as
   await page.getByRole("button",{name:"Diagnostics"}).click();
   await expect(page.getByText("Vector map ready")).toBeVisible();
   await expect(page.getByText("MapLibre GL JS")).toBeVisible();
+  await expect(page.getByText(/Vector style ready:/)).toBeVisible();
+
   await page.getByRole("button",{name:"Run browser smoke checks"}).click();
   await expect(page.getByText("Geometry export")).toBeVisible();
   await expect(page.locator(".test-results .failed")).toHaveCount(0);
@@ -57,6 +59,10 @@ test("vector map initializes a worker, renders pins, and applies a new style",as
   await page.getByRole("button",{name:/Bright/}).click();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await page.locator('input[aria-label="Rivers and water"]').fill("#aabbcc");
+  await page.getByRole("button",{name:/High.*sharper/}).click();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await page.getByRole("button",{name:/Balanced.*faster/}).click();
+
   await page.waitForTimeout(800);
   await expect(page.locator(".leaflet-container")).toHaveCount(0);
   expect(errors).toEqual([]);
