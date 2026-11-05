@@ -85,3 +85,17 @@
  .map-top-right{right:12px;top:17px}.map-top-right>button{width:35px;height:36px}
  .map-actions{top:85px;right:12px;transform:none}.map-bottom-card{bottom:30px;left:12px;padding:9px 11px;max-width:235px}.map-bottom-icon{width:27px;height:27px}.map-bottom-card strong{font-size:10px}.map-bottom-card span{font-size:9px}.map-footer-data{display:none}.toast{left:12px;top:66px;max-width:calc(100% - 78px);font-size:10px}.mode-indicator{right:12px;top:252px;max-width:220px}.selected-map-card,.identified-bubble{bottom:95px;left:12px}
 }
+
+/* Atlas vector color studio — editable per-layer colors */
+.vector-color-fields{display:flex;flex-direction:column;gap:9px;margin-bottom:16px}
+.vector-color-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid #e6ecf3;border-radius:10px;cursor:pointer;background:#fff}
+.vector-color-row:hover{background:#f7f9ff;border-color:#b9c5e9}
+.vector-color-row>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.vector-color-row strong{font-size:11px;font-weight:750;color:#314158}
+.vector-color-row small{font-size:9px;color:#909eb1;line-height:1.45}
+.vector-color-row input[type=color]{appearance:none;width:40px;height:38px;border-radius:9px;border:1px solid #d8e1ef;padding:3px;cursor:pointer;flex-shrink:0;background:white}
+.vector-color-row input[type=color]::-webkit-color-swatch{border-radius:5px;border:0}
+.vector-color-row input[type=color]::-moz-color-swatch{border-radius:5px;border:0}
+.basemap-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.basemap-grid .basemap-card{min-height:115px}
+@media(max-width:700px){.vector-color-row{padding:7px 9px}.vector-color-row input[type=color]{width:36px;height:34px}}

@@ -49,7 +49,6 @@ function categorize(id: string, sourceLayer: string | undefined, layerType: stri
   return null;
 }
 export function applyVectorTheme(map: MapLibreMap, theme: VectorTheme): void {
-  if (!map.isStyleLoaded()) return;
   const style = map.getStyle();
   if (!style?.layers) return;
   for (const layer of style.layers) {
@@ -167,13 +166,19 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     if (!host.current) return;
     let loaded=false;
     let errors=0;
-    const instance=new MapLibreMap({
-      container:host.current!,
-      style:styleUrl,
-      center:[center.lng,center.lat],
-      zoom,
-      maxZoom:19,
-    });
+    let instance: MapLibreMap;
+    try {
+      instance = new MapLibreMap({
+        container:host.current!,
+        style:styleUrl,
+        center:[center.lng,center.lat],
+        zoom,
+        maxZoom:19,
+      });
+    } catch (error) {
+      latest.current.onError?.(error instanceof Error ? error.message : "WebGL map unavailable.");
+      return;
+    }
     map.current=instance;
     const emit=()=>latest.current.onViewChange?.(viewOf(instance));
     instance.on("moveend",emit);

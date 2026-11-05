@@ -3,12 +3,14 @@
 Atlas consists of browser-side packages and a test application.
 
 - **Core**: provider-agnostic geographic models, spherical measurement utilities, input parsing, explicit geocoding interfaces and a Photon/Nominatim adapter.
-- **React**: a Leaflet renderer, layer components, map controller ref and map event callbacks.
+- **React**: Leaflet raster and MapLibre vector adapters with a shared map controller API, markers, shapes, and map event callbacks.
 - **Atlas Lab**: functional playground; calls public OSM/Photon for manual testing, exposes errors and event logs, and does not silently claim road routing.
 
 ### Providers
 
-Default raster tiles: https://tile.openstreetmap.org/{z}/{x}/{y}.png
+Default vector tiles: https://tiles.openfreemap.org/styles/liberty, rendered by MapLibre. This public instance requires **no account or API key** but is still third-party hosting.
+
+Default raster fallback: https://tile.openstreetmap.org/{z}/{x}/{y}.png
 
 Default geocoder: https://photon.komoot.io
 
@@ -18,9 +20,9 @@ These are shared services, **not** Atlas infrastructure. Rate and attribution re
 
 ### Scope and roadmap
 
-v0.1: Leaflet raster adapter, points/lines/polygons/circles, geocoder, location picking, geometry, playground diagnostics.
+v0.2: Leaflet raster adapter, MapLibre vector adapter, editable basic feature colors, points/lines/polygons/circles, geocoder, location picking, geometry, playground diagnostics.
 
-Later: MapLibre vector adapter, editable vector styles, routing provider interface, offline packaging and robust GeoJSON import/export. None of these is advertised as working until implemented and tested.
+Later: full MapLibre layer/typography editor, routing provider interface, offline packaging, and robust GeoJSON import/export. Current color editing is a basic categorical mapping, not a full arbitrary MapLibre style editor.
 
 ### Security
 
