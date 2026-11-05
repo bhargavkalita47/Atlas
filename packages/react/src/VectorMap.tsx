@@ -73,8 +73,8 @@ export interface AtlasVectorMapProps {
   zoom?: number;
   styleUrl?: string;
   theme: VectorTheme;
-  markers: MarkerData[];
-  shapes: Shape[];
+  markers: readonly MarkerData[];
+  shapes: readonly Shape[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   onDrag?: (id: string, point: LatLng) => void;
@@ -107,7 +107,7 @@ function circleRing(center: LatLng, radiusMeters: number): [number,number][] {
   }
   return coords;
 }
-function asGeoJson(shapes: Shape[]): GeoJSON.FeatureCollection {
+function asGeoJson(shapes: readonly Shape[]): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (const shape of shapes) {
     const color = safeHex(shape.color);

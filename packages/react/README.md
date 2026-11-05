@@ -31,3 +31,11 @@ The vector API accepts the same `AtlasMapHandle` as the raster adapter, with `ce
 ### Reuse
 
 Both adapters expose imperative controls through `AtlasMapHandle`. Geocoding, coordinates, geometry and application data belong in `@atlas/core`; Atlas does not manage application accounts or private locations.
+
+### Camera behavior
+
+The `center` and `zoom` props specify the **initial map view**. Use `AtlasMapHandle.setView`, `flyTo`, or `fitTo` for subsequent camera changes. Atlas does not silently pan every time a parent component rerenders.
+
+Marker and shape props accept read-only arrays. Replace or create data with stable IDs; Atlas reconciles individual marker elements and preserves the rest.
+
+The `@atlas/react` package is currently developed as a monorepo workspace and **has not been published to npm**. Before public publishing, choose and verify an npm scope you control.

@@ -91,7 +91,7 @@ export const AtlasMap = forwardRef<AtlasMapHandle, AtlasMapProps>(function Atlas
   </Context.Provider>;
 });
 export interface MarkerLayerProps {
-  markers: MarkerData[]; selectedId?: string|null;
+  markers: readonly MarkerData[]; selectedId?: string|null;
   onSelect?: (id:string)=>void;
   onDrag?: (id:string, point:LatLng)=>void;
 }
@@ -184,7 +184,7 @@ export function MarkerLayer({markers,selectedId,onSelect,onDrag}:MarkerLayerProp
   },[selectedId]);
   return null;
 }
-export function ShapeLayer({shapes}:{shapes:Shape[]}){
+export function ShapeLayer({shapes}:{shapes:readonly Shape[]}){
   const map=useAtlasMap(),group=useRef<L.LayerGroup|null>(null);
   useEffect(()=>{
     if(!map)return;

@@ -175,3 +175,4 @@ export function createPhotonGeocoder(options: PhotonOptions = {}): Geocoder {
 }
 
 export {toAtlasGeoJSON,parseAtlasGeoJSON} from "./geojson";
+export type {AtlasGeoJSON,AtlasGeoJSONFeature,AtlasGeoJSONImport,AtlasGeoJSONImportOptions} from "./geojson";

@@ -13,6 +13,7 @@ jobs:
           node-version: "22"
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - run: npm pack --workspace=@atlas/core --dry-run && npm pack --workspace=@atlas/react --dry-run
       # E2E exercises the actual MapLibre worker in Chromium instead of
       # relying on a green TypeScript build alone.
       - run: npx playwright install --with-deps chromium
