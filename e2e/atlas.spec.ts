@@ -44,6 +44,9 @@ test("deploy output caches only fingerprinted assets and preloads default style"
   expect(rules).not.toContain("/*\\n  Cache-Control: public, max-age=31536000");
 
   await page.goto("/");
+  // Production HTML hints at the hashed default vector module, not raster.
+  await expect(page.locator('link[rel="modulepreload"][href*="VectorMapLoader-"][href$=".js"]')).toHaveCount(1);
+  await expect(page.locator('link[rel="modulepreload"][href*="RasterMapLoader-"]')).toHaveCount(0);
   await expect(page.locator('link[rel="preload"][as="fetch"][href="https://tiles.openfreemap.org/styles/positron"]')).toHaveCount(1);
   await page.getByRole("button",{name:"Style studio"}).click();
   await page.getByRole("button",{name:/Bright/}).hover();
