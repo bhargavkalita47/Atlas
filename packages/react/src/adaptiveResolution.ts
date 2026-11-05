@@ -122,6 +122,18 @@ export function createAdaptiveResolutionController(
   map.on("moveend",endMove);
   map.on("zoomstart",startZoom);
   map.on("zoomend",endZoom);
+  // A mid-gesture map.resize() may interrupt MapLibre's drag handler before
+  // it emits moveend. Always release the pending downshift after pointerup,
+  // even when that movement-end event is missed.
+  const ownerWindow=map.getCanvas?.()?.ownerDocument?.defaultView;
+  const releasePointer=()=>{
+    if(moving)endMove();
+  };
+  ownerWindow?.addEventListener("pointerup",releasePointer,{passive:true});
+  ownerWindow?.addEventListener("pointercancel",releasePointer,{passive:true});
+  ownerWindow?.addEventListener("touchend",releasePointer,{passive:true});
+  ownerWindow?.addEventListener("mouseup",releasePointer,{passive:true});
+  ownerWindow?.addEventListener("blur",releasePointer);
   options.onChange?.({phase:"idle",pixelRatio:applied});
 
   return{
@@ -152,6 +164,11 @@ export function createAdaptiveResolutionController(
       map.off("moveend",endMove);
       map.off("zoomstart",startZoom);
       map.off("zoomend",endZoom);
+      ownerWindow?.removeEventListener("pointerup",releasePointer);
+      ownerWindow?.removeEventListener("pointercancel",releasePointer);
+      ownerWindow?.removeEventListener("touchend",releasePointer);
+      ownerWindow?.removeEventListener("mouseup",releasePointer);
+      ownerWindow?.removeEventListener("blur",releasePointer);
     }
   };
 }

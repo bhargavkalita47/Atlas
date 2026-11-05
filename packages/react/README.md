@@ -56,6 +56,8 @@ A large map dataset should use clustered GeoJSON/vector layers rather than thous
 
 The vector adapter now supports `adaptiveResolution={true}` (default). During sustained **non-zooming pan** motion, Atlas temporarily caps canvas density at **1.0×**. Zoom animations (including pinch and wheel zoom) now retain a constant pixel ratio to avoid expensive WebGL framebuffer reallocation during rapid zoom reversals. After interaction settles, Atlas restores the selected `renderQuality` baseline (Balanced = up to 1.5×, High = device DPR).
 
+If a resize interrupts a MapLibre drag and it misses `moveend`, Atlas also observes the browser's pointer-release event so the lower-resolution framebuffer cannot remain stuck after the user releases the map.
+
 There is a 140 ms panning threshold to avoid expensive canvas reallocations for tiny transitions and a 420 ms restoration delay to avoid flicker between closely spaced gestures. MapLibre's `setPixelRatio` calls `resize`, which also emits camera events, so Atlas guards against re-entrant event loops. It uses no per-frame React state or `requestAnimationFrame` loop.
 
 Set `adaptiveResolution={false}` to preserve constant pixel density. Optional `onResolutionChange={({phase,pixelRatio})=>...}` exposes the actual chosen canvas ratio for debugging. This changes only the GPU framebuffer resolution; basemap detail, label sources, zoom, and exported data are unchanged.

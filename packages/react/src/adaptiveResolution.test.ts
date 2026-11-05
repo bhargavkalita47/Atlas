@@ -7,7 +7,9 @@ import {
 class FakeMap{
   ratio:number;
   writes:number[]=[];
+  eventWindow=new EventTarget();
   handlers=new Map<string,Set<()=>void>>();
+  getCanvas(){return {ownerDocument:{defaultView:this.eventWindow}};}
   constructor(ratio:number){this.ratio=ratio;}
   on(event:string,fn:()=>void){
     const handlers=this.handlers.get(event)??new Set<()=>void>();
@@ -104,6 +106,23 @@ describe("Atlas adaptive WebGL resolution",()=>{
     expect(fake.ratio).toBe(1);
     fake.fire("moveend");
     vi.advanceTimersByTime(420);
+    expect(fake.ratio).toBe(1.5);
+    ctrl.dispose();
+  });
+  it("recovers from a missing moveend using pointer release",()=>{
+    const fake=new FakeMap(1.5);
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3
+    });
+    fake.fire("movestart");
+    vi.advanceTimersByTime(140);
+    expect(fake.ratio).toBe(1);
+    // Emulate a drag-handler interruption after a framebuffer resize:
+    // no MapLibre moveend event arrives.
+    fake.eventWindow.dispatchEvent(new Event("pointerup"));
+    vi.advanceTimersByTime(419);
+    expect(fake.ratio).toBe(1);
+    vi.advanceTimersByTime(1);
     expect(fake.ratio).toBe(1.5);
     ctrl.dispose();
   });
