@@ -21,7 +21,7 @@ npm run test
 npm run build
 ```
 
-The development server is at http://localhost:5173.
+The development server is at http://localhost:5173. The playground initializes the MapLibre v6 browser worker using the Vite `?worker&url` import before rendering the vector map. Applications using `@atlas/react` must configure the MapLibre worker for their bundler (see `packages/react/README.md`).
 
 ## Cloudflare deployment
 
