@@ -8,8 +8,30 @@ class FakeMap{
   ratio:number;
   writes:number[]=[];
   eventWindow=new EventTarget();
+  inputTarget=new EventTarget();
   handlers=new Map<string,Set<()=>void>>();
   getCanvas(){return {ownerDocument:{defaultView:this.eventWindow}};}
+  getCanvasContainer(){return this.inputTarget;}
+  touchStart(count:number){
+    const event=new Event("touchstart");
+    Object.assign(event,{touches:Array.from({length:count})});
+    this.inputTarget.dispatchEvent(event);
+  }
+  touchEnd(count:number){
+    const event=new Event("touchend");
+    Object.assign(event,{touches:Array.from({length:count})});
+    this.eventWindow.dispatchEvent(event);
+  }
+  pointerDown(id:number){
+    const event=new Event("pointerdown");
+    Object.assign(event,{pointerType:"touch",pointerId:id});
+    this.inputTarget.dispatchEvent(event);
+  }
+  pointerUp(id:number){
+    const event=new Event("pointerup");
+    Object.assign(event,{pointerType:"touch",pointerId:id});
+    this.eventWindow.dispatchEvent(event);
+  }
   constructor(ratio:number){this.ratio=ratio;}
   on(event:string,fn:()=>void){
     const handlers=this.handlers.get(event)??new Set<()=>void>();
@@ -126,6 +148,86 @@ describe("Atlas adaptive WebGL resolution",()=>{
     expect(fake.ratio).toBe(1.5);
     ctrl.dispose();
   });
+  it("does not resize during a long stationary two-finger hold after zoomend",()=>{
+    const fake=new FakeMap(1.5);
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3
+    });
+    fake.pointerDown(1);
+    fake.pointerDown(2);
+    fake.touchStart(2);
+    fake.fire("movestart");
+    fake.fire("zoomstart");
+    vi.advanceTimersByTime(300);
+    fake.fire("zoomend");
+    fake.fire("moveend");
+    vi.advanceTimersByTime(2500);
+    expect(fake.writes).toEqual([]);
+
+    // Changing quality while fingers are resting must also be deferred.
+    ctrl.update({quality:"high",enabled:true});
+    vi.advanceTimersByTime(800);
+    expect(fake.writes).toEqual([]);
+
+    // One released finger is not the end of a multi-touch interaction.
+    fake.pointerUp(1);
+    fake.touchEnd(1);
+    vi.advanceTimersByTime(2000);
+    expect(fake.writes).toEqual([]);
+
+    fake.pointerUp(2);
+    fake.touchEnd(0);
+    vi.advanceTimersByTime(419);
+    expect(fake.writes).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(fake.writes).toEqual([3]);
+    ctrl.dispose();
+  });
+  it("does not downscale a one-finger mobile drag while contact is active",()=>{
+    const fake=new FakeMap(1.5);
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3
+    });
+    fake.pointerDown(3);
+    fake.touchStart(1);
+    fake.fire("movestart");
+    vi.advanceTimersByTime(1500);
+    expect(fake.writes).toEqual([]);
+    fake.fire("moveend");
+    vi.advanceTimersByTime(1000);
+    expect(fake.writes).toEqual([]);
+    fake.pointerUp(3);
+    fake.touchEnd(0);
+    vi.advanceTimersByTime(900);
+    expect(fake.writes).toEqual([]);
+    ctrl.dispose();
+  });
+  it("restores a previously reduced mouse-pan canvas only after every finger releases",()=>{
+    const fake=new FakeMap(1.5);
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3
+    });
+    fake.fire("movestart");
+    vi.advanceTimersByTime(140);
+    expect(fake.writes).toEqual([1]);
+    fake.pointerDown(1);
+    fake.pointerDown(2);
+    fake.touchStart(2);
+    fake.fire("zoomstart");
+    fake.fire("zoomend");
+    fake.fire("moveend");
+    vi.advanceTimersByTime(2500);
+    expect(fake.writes).toEqual([1]);
+    fake.pointerUp(1);
+    fake.touchEnd(1);
+    vi.advanceTimersByTime(600);
+    expect(fake.writes).toEqual([1]);
+    fake.pointerUp(2);
+    fake.touchEnd(0);
+    vi.advanceTimersByTime(420);
+    expect(fake.writes).toEqual([1,1.5]);
+    ctrl.dispose();
+  });
   it("never reallocates the canvas during bursts of zoom in/out",()=>{
     const fake=new FakeMap(1.5);
     const ctrl=createAdaptiveResolutionController(asMap(fake),{
@@ -206,5 +308,11 @@ describe("Atlas adaptive WebGL resolution",()=>{
     expect(fake.handlers.get("moveend")?.size).toBe(0);
     expect(fake.handlers.get("zoomstart")?.size).toBe(0);
     expect(fake.handlers.get("zoomend")?.size).toBe(0);
+    fake.touchStart(2);
+    fake.pointerDown(1);
+    fake.touchEnd(0);
+    fake.pointerUp(1);
+    vi.advanceTimersByTime(1000);
+    expect(fake.writes).toEqual([]);
   });
 });

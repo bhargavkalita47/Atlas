@@ -56,7 +56,9 @@ A large map dataset should use clustered GeoJSON/vector layers rather than thous
 
 The vector adapter now supports `adaptiveResolution={true}` (default). During sustained **non-zooming pan** motion, Atlas temporarily caps canvas density at **1.0×**. Zoom animations (including pinch and wheel zoom) now retain a constant pixel ratio to avoid expensive WebGL framebuffer reallocation during rapid zoom reversals. After interaction settles, Atlas restores the selected `renderQuality` baseline (Balanced = up to 1.5×, High = device DPR).
 
-If a resize interrupts a MapLibre drag and it misses `moveend`, Atlas also observes the browser's pointer-release event so the lower-resolution framebuffer cannot remain stuck after the user releases the map.
+Touchscreen safety: Atlas tracks both touch and pointer contacts on the map. **It never changes WebGL canvas pixel density while any finger is touching the map**, even after MapLibre emits `moveend` or `zoomend` during a stationary pinch. Releasing one of two fingers does not end the gesture. A pending resolution change is applied only after the last finger is released and the restore debounce expires. Thus touch panning retains the selected static Balanced or High resolution; adaptive downscaling is reserved for sustained non-touch movement. This avoids reallocating the GPU framebuffer under an active multi-touch gesture.
+
+If a resize interrupts a mouse drag and it misses `moveend`, Atlas also observes pointer-release so a lower-resolution framebuffer cannot remain stuck.
 
 There is a 140 ms panning threshold to avoid expensive canvas reallocations for tiny transitions and a 420 ms restoration delay to avoid flicker between closely spaced gestures. MapLibre's `setPixelRatio` calls `resize`, which also emits camera events, so Atlas guards against re-entrant event loops. It uses no per-frame React state or `requestAnimationFrame` loop.
 

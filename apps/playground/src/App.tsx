@@ -374,7 +374,7 @@ export default function App(){
                   onClick={()=>setAdaptiveResolution(value=>!value)}>
                   Dynamic resolution scaling: {adaptiveResolution?"On":"Off"}
                 </button>
-                <div className="muted-tip">When enabled, Atlas lowers the canvas resolution during sustained pan and zoom, then restores your selected Balanced or High quality once motion ends. Map tiles and map detail are unchanged.</div>
+                <div className="muted-tip">When enabled, Atlas lowers resolution during long mouse drags, restoring quality when movement stops. Touch gestures keep a stable canvas resolution to prevent pinch-zoom freezes. Map detail and tiles stay unchanged.</div>
               </section>}
               {renderer==="vector"&&<>
                 <section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
