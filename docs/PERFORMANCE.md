@@ -54,3 +54,15 @@ Browser timings depend on network and device capability, so no universal speedup
 - Add repeatable real-device frame-rate and cold/warm-start benchmarks before changing production maps.
 
 Do not merge optimization changes into `main` solely on bundle-size numbers; confirm live map completeness and interactions first.
+
+## Browser cache and targeted preloading
+
+- Cloudflare Workers static assets otherwise use `Cache-Control: public, max-age=0, must-revalidate`. Atlas now packages `apps/playground/public/_headers` so the fingerprinted `/assets/*` JavaScript, CSS and MapLibre worker can be stored by the browser for up to one year with `immutable`. Files are content-hashed, so a subsequent deployment uses new URLs when content changes. **HTML is deliberately not immutable.**
+- Atlas Lab connects early to the keyless vector tile host and now preloads only its default Positron **style JSON** while the app boots. This is a CORS-aware fetch hint: it is advisory and may be ignored by some browsers, or fail to reuse a response if the provider restricts HTTP caching.
+- Hovering/focusing a different style preset hints to the browser to fetch only that style JSON before the click. `preloadVectorStyle(url)` in `@atlas/react/vector-config` is reusable, safe for server-side rendering, and idempotent.
+- Hovering/focusing **Vector** while raster is selected warms the MapLibre application module; it does not fetch tiles for unseen locations.
+- MapLibre continues to use its own bounded **in-memory** tile cache (the default zoom-level budget) plus the browser's normal HTTP cache for remote vector tiles, sprites, and glyphs. We do not override OpenFreeMap's caching policy, copy tiles into IndexedDB/CacheStorage, or download ahead for locations the user isn't viewing.
+- Cloudflare `_headers` applies to static assets only; it cannot override cache headers of third-party OpenFreeMap responses.
+- Browser preload hints do not bypass cache headers and cannot make a cold third-party tile request instant.
+
+Verify the response headers for one hashed JS asset and one hashed worker asset in the **deployed Cloudflare preview**, and compare reloads with browser DevTools cache enabled. Chromium E2E with Playwright route mocking can verify the hints exist but cannot reliably benchmark an external HTTP cache because routing disables the browser cache.

@@ -12,9 +12,15 @@ import {
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
 import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
-import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
+import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
 const AtlasRasterMap=lazy(()=>import("./RasterMapLoader"));
+function warmVectorEngine(){
+  // Start fetching the optional engine only when a user shows intent to
+  // switch from raster mode. No speculative tile downloads are performed.
+  void import("./VectorMapLoader").catch(()=>{});
+}
+
 
 const GUWAHATI:LatLng={lat:26.1716,lng:91.7606};
 const osmAttribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';
@@ -351,7 +357,7 @@ export default function App(){
             {tab==="styles"&&<>
               <section className="pane-section"><div className="section-label">RENDER ENGINE</div>
                 <div className="filter-options">
-                  <button className={renderer==="vector"?"selected":""} onClick={()=>setRenderer("vector")}>Vector · editable</button>
+                  <button className={renderer==="vector"?"selected":""} onPointerEnter={warmVectorEngine} onFocus={warmVectorEngine} onClick={()=>setRenderer("vector")}>Vector · editable</button>
                   <button className={renderer==="raster"?"selected":""} onClick={()=>setRenderer("raster")}>Raster · fallback</button>
                 </div>
                 <div className="muted-tip">Vector mode uses MapLibre and keyless OSM-derived tiles. Raster fallback uses standard OpenStreetMap tiles. Neither requires a paid API key.</div>
@@ -368,6 +374,8 @@ export default function App(){
                 <section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
                   <div className="basemap-grid">{VECTOR_STYLES.map(t=><button
                     key={t.id} className={"basemap-card basemap-"+(t.id==="dark"?"dark":"light")+(vectorStyle===t.id?" selected":"")}
+                    onPointerEnter={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
+                    onFocus={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
                     onClick={()=>{setVectorStyle(t.id);log("Vector style: "+t.name);}}>
                     <span className="basemap-preview"><span className="road one"/><span className="road two"/><span className="water"/></span>
                     <strong>{t.name}</strong><small>{t.tag}</small>{vectorStyle===t.id&&<Check size={16} className="basemap-check"/>}

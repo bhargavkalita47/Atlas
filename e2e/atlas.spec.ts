@@ -1,3 +1,5 @@
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
 import {test,expect} from "@playwright/test";
 
 // An in-memory style with a GeoJSON source deliberately exercises MapLibre's
@@ -33,6 +35,21 @@ test.beforeEach(async({page})=>{
       body:JSON.stringify(fixtureStyle)
     });
   });
+});
+
+test("deploy output caches only fingerprinted assets and preloads default style",async({page})=>{
+  const rules=readFileSync(resolve(process.cwd(),"apps/playground/dist/_headers"),"utf8");
+  expect(rules).toContain("/assets/*");
+  expect(rules).toContain("Cache-Control: public, max-age=31536000, immutable");
+  expect(rules).not.toContain("/*\\n  Cache-Control: public, max-age=31536000");
+
+  await page.goto("/");
+  await expect(page.locator('link[rel="preload"][as="fetch"][href="https://tiles.openfreemap.org/styles/positron"]')).toHaveCount(1);
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("button",{name:/Bright/}).hover();
+  await expect(page.locator('link[rel="preload"][as="fetch"][href="https://tiles.openfreemap.org/styles/bright"]')).toHaveCount(1);
+  await page.getByRole("button",{name:/Bright/}).hover();
+  await expect(page.locator('link[rel="preload"][as="fetch"][href="https://tiles.openfreemap.org/styles/bright"]')).toHaveCount(1);
 });
 
 test("vector map initializes a worker, renders pins, and applies a new style",async({page})=>{
