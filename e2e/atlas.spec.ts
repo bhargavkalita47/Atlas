@@ -105,3 +105,31 @@ test("maps remain operable on a mobile viewport and can use raster fallback",asy
   await expect(page.locator(".leaflet-container")).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(0);
 });
+
+test.describe("adaptive resolution on dense displays",()=>{
+  test.use({deviceScaleFactor:2});
+
+  test("reduces the physical WebGL canvas pixels during zoom then restores quality",async({page})=>{
+    await page.goto("/");
+    const canvas=page.locator(".maplibregl-canvas");
+    await expect(canvas).toBeVisible();
+    await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+    const pixelRatio=()=>canvas.evaluate(element=>{
+      const drawing=element as HTMLCanvasElement;
+      return drawing.clientWidth>0?drawing.width/drawing.clientWidth:0;
+    });
+    await expect.poll(pixelRatio,{timeout:10000}).toBeGreaterThan(1.4);
+
+    await page.getByRole("button",{name:"Zoom in"}).click();
+    await expect.poll(pixelRatio,{timeout:4000,intervals:[35,45,60,70]}).toBeLessThan(1.2);
+    await expect.poll(pixelRatio,{timeout:5000}).toBeGreaterThan(1.4);
+
+    await page.getByRole("button",{name:"Style studio"}).click();
+    await page.getByRole("button",{name:"Dynamic resolution scaling: On"}).click();
+    await expect(page.getByRole("button",{name:"Dynamic resolution scaling: Off"})).toBeVisible();
+    await page.getByRole("button",{name:"Zoom in"}).click();
+    await page.waitForTimeout(170);
+    expect(await pixelRatio()).toBeGreaterThan(1.4);
+    await expect(canvas).toBeVisible();
+  });
+});
