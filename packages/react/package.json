@@ -13,8 +13,23 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "README.md"],
-  "scripts": { "build": "tsup src/index.tsx --format esm,cjs --dts --clean" },
-  "dependencies": { "@atlas/core": "0.1.0", "leaflet": "^1.9.4" },
-  "peerDependencies": { "react": "^18.0.0 || ^19.0.0" }
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.tsx --format esm,cjs --dts --clean",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@atlas/core": "0.1.0",
+    "leaflet": "^1.9.4",
+    "maplibre-gl": "^6.3.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
 }
