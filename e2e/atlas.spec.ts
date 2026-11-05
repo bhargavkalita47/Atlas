@@ -106,30 +106,61 @@ test("maps remain operable on a mobile viewport and can use raster fallback",asy
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(0);
 });
 
-test.describe("adaptive resolution on dense displays",()=>{
+test.describe("zoom-safe adaptive resolution on dense displays",()=>{
   test.use({deviceScaleFactor:2});
 
-  test("reduces the physical WebGL canvas pixels during zoom then restores quality",async({page})=>{
+  test("fast alternating zoom does not resize the WebGL canvas",async({page})=>{
     await page.goto("/");
     const canvas=page.locator(".maplibregl-canvas");
     await expect(canvas).toBeVisible();
-    await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
     const pixelRatio=()=>canvas.evaluate(element=>{
       const drawing=element as HTMLCanvasElement;
       return drawing.clientWidth>0?drawing.width/drawing.clientWidth:0;
     });
     await expect.poll(pixelRatio,{timeout:10000}).toBeGreaterThan(1.4);
 
-    await page.getByRole("button",{name:"Zoom in"}).click();
-    await expect.poll(pixelRatio,{timeout:4000,intervals:[35,45,60,70]}).toBeLessThan(1.2);
-    await expect.poll(pixelRatio,{timeout:5000}).toBeGreaterThan(1.4);
+    await page.evaluate(()=>{
+      const target=document.querySelector<HTMLCanvasElement>(".maplibregl-canvas")!;
+      const widths:number[]=[];
+      Object.assign(window,{atlasZoomTestCanvasWidths:widths});
+      new MutationObserver(()=>{
+        widths.push(target.width);
+      }).observe(target,{attributes:true,attributeFilter:["width","height"]});
+    });
+    for(let index=0;index<8;index++){
+      await page.getByRole("button",{name:index%2===0?"Zoom in":"Zoom out"}).click();
+    }
+    await page.waitForTimeout(650);
+    const widths=await page.evaluate(
+      ()=>(window as Window & {atlasZoomTestCanvasWidths:number[]}).atlasZoomTestCanvasWidths
+    );
+    expect(widths).toEqual([]);
+    expect(await pixelRatio()).toBeGreaterThan(1.4);
+    await expect(canvas).toBeVisible();
+  });
 
+  test("sustained panning reduces resolution and restores it after release",async({page})=>{
+    await page.goto("/");
+    const canvas=page.locator(".maplibregl-canvas");
+    await expect(canvas).toBeVisible();
+    const pixelRatio=()=>canvas.evaluate(element=>{
+      const drawing=element as HTMLCanvasElement;
+      return drawing.clientWidth>0?drawing.width/drawing.clientWidth:0;
+    });
+    await expect.poll(pixelRatio,{timeout:10000}).toBeGreaterThan(1.4);
+    const bounds=await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    const x=bounds!.x+bounds!.width/2;
+    const y=bounds!.y+bounds!.height/2;
+    await page.mouse.move(x,y);
+    await page.mouse.down();
+    await page.mouse.move(x+90,y+45,{steps:10});
+    await expect.poll(pixelRatio,{timeout:3500}).toBeLessThan(1.2);
+    await page.mouse.up();
+    await expect.poll(pixelRatio,{timeout:5000}).toBeGreaterThan(1.4);
     await page.getByRole("button",{name:"Style studio"}).click();
     await page.getByRole("button",{name:"Dynamic resolution scaling: On"}).click();
     await expect(page.getByRole("button",{name:"Dynamic resolution scaling: Off"})).toBeVisible();
-    await page.getByRole("button",{name:"Zoom in"}).click();
-    await page.waitForTimeout(170);
-    expect(await pixelRatio()).toBeGreaterThan(1.4);
     await expect(canvas).toBeVisible();
   });
 });

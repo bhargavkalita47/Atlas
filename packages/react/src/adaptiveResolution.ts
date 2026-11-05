@@ -1,24 +1,23 @@
 import type {Map as MapLibreMap} from "maplibre-gl";
 
-/** Physical canvas pixel density. This never changes the map's logical zoom. */
-export type ResolutionQuality = "balanced" | "high";
-export type ResolutionPhase = "moving" | "idle";
-export interface ResolutionState {
-  phase: ResolutionPhase;
-  pixelRatio: number;
+/** Physical canvas pixel density; geographical zoom and tile detail are unchanged. */
+export type ResolutionQuality="balanced"|"high";
+export type ResolutionPhase="moving"|"idle";
+export interface ResolutionState{
+  phase:ResolutionPhase;
+  pixelRatio:number;
 }
-export interface AdaptiveResolutionOptions {
-  quality: ResolutionQuality;
-  enabled?: boolean;
-  /** Captured at construction so device scaling is consistent. */
-  devicePixelRatio?: number;
-  /** Ignore very brief moves so canvas resizes aren't more expensive than the move. */
-  activationDelayMs?: number;
-  /** Wait after a gesture finishes to avoid toggling rapidly. */
-  restoreDelayMs?: number;
-  onChange?: (state:ResolutionState)=>void;
+export interface AdaptiveResolutionOptions{
+  quality:ResolutionQuality;
+  enabled?:boolean;
+  devicePixelRatio?:number;
+  /** Only reduce resolution during sustained pan, never during zoom. */
+  activationDelayMs?:number;
+  /** Restore after a quiet interval, avoiding repeated GPU reallocations. */
+  restoreDelayMs?:number;
+  onChange?:(state:ResolutionState)=>void;
 }
-export interface AdaptiveResolutionController {
+export interface AdaptiveResolutionController{
   update(options:Pick<AdaptiveResolutionOptions,"quality"|"enabled">):void;
   dispose():void;
 }
@@ -28,31 +27,32 @@ export function basePixelRatio(quality:ResolutionQuality,deviceRatio:number):num
 }
 
 /**
- * Use MapLibre's native pixel-ratio override instead of CSS scaling.
- * Map.setPixelRatio triggers a synchronous resize that may itself fire
- * movestart/moveend; the reentrancy guard is essential to avoid feedback.
+ * Calling MapLibre's setPixelRatio reallocates the WebGL canvas and calls
+ * map.resize(). Resizing in the middle of a fast wheel/pinch zoom can stall the
+ * browser, so adaptive downscaling is limited to sustained *non-zooming* pans.
  *
- * Runs only when the camera actually moves, not on every render frame.
- * There is one downshift at most per long gesture, then one restoration.
+ * A 420 ms quiet period also coalesces rapid gesture reversals. Both pixel
+ * ratio changes and event-handler callbacks are bounded to one transition
+ * per long pan and one restoration after it fully ends.
  */
 export function createAdaptiveResolutionController(
-  map:MapLibreMap, options:AdaptiveResolutionOptions
-):AdaptiveResolutionController {
+  map:MapLibreMap,options:AdaptiveResolutionOptions
+):AdaptiveResolutionController{
   let quality=options.quality;
   let enabled=options.enabled??true;
   const device=Number.isFinite(options.devicePixelRatio)
     ? options.devicePixelRatio!
     : typeof window!=="undefined"?(window.devicePixelRatio||1):1;
-  const startDelay=Math.max(0,options.activationDelayMs??70);
-  const endDelay=Math.max(0,options.restoreDelayMs??180);
+  const activationDelay=Math.max(0,options.activationDelayMs??140);
+  const restoreDelay=Math.max(0,options.restoreDelayMs??420);
   let applied=map.getPixelRatio();
   let moving=false;
+  let zooming=false;
   let reduced=false;
   let disposed=false;
   let changing=false;
   let activation:ReturnType<typeof setTimeout>|undefined;
   let restoration:ReturnType<typeof setTimeout>|undefined;
-
   const cancelActivation=()=>{
     if(activation!==undefined){clearTimeout(activation);activation=undefined;}
   };
@@ -60,62 +60,86 @@ export function createAdaptiveResolutionController(
     if(restoration!==undefined){clearTimeout(restoration);restoration=undefined;}
   };
   const setRatio=()=>{
-    if(disposed)return;
-    const base=basePixelRatio(quality,device);
-    const desired=reduced&&enabled?Math.min(base,1):base;
-    if(Math.abs(desired-applied)<.01)return;
+    // Never resize the framebuffer during an active zoom animation.
+    if(disposed||zooming||changing)return;
+    const baseline=basePixelRatio(quality,device);
+    const next=enabled&&reduced?Math.min(baseline,1):baseline;
+    if(Math.abs(next-applied)<.01)return;
     changing=true;
     try{
-      map.setPixelRatio(desired);
-      applied=desired;
-      options.onChange?.({phase:reduced&&enabled?"moving":"idle",pixelRatio:desired});
+      map.setPixelRatio(next);
+      applied=next;
+      options.onChange?.({phase:enabled&&reduced?"moving":"idle",pixelRatio:next});
     }finally{changing=false;}
   };
-  const begin=()=>{
+  const scheduleActivation=()=>{
+    if(disposed||!enabled||reduced||zooming||!moving||activation!==undefined)return;
+    activation=setTimeout(()=>{
+      activation=undefined;
+      if(disposed||!moving||zooming||!enabled)return;
+      reduced=true;
+      setRatio();
+    },activationDelay);
+  };
+  const scheduleRestore=()=>{
+    cancelRestoration();
+    // Delay even if not reduced: a quality toggle during zoom is applied when
+    // zoom settles, without triggering an expensive resize mid-animation.
+    restoration=setTimeout(()=>{
+      restoration=undefined;
+      if(disposed||moving||zooming)return;
+      reduced=false;
+      setRatio();
+    },restoreDelay);
+  };
+  const startMove=()=>{
     if(disposed||changing)return;
     moving=true;
     cancelRestoration();
-    if(!enabled||reduced||activation!==undefined)return;
-    activation=setTimeout(()=>{
-      activation=undefined;
-      if(disposed||!moving||!enabled)return;
-      reduced=true;
-      setRatio();
-    },startDelay);
+    scheduleActivation();
   };
-  const end=()=>{
+  const endMove=()=>{
     if(disposed||changing)return;
     moving=false;
     cancelActivation();
-    if(!reduced)return;
-    cancelRestoration();
-    restoration=setTimeout(()=>{
-      restoration=undefined;
-      if(disposed||moving)return;
-      reduced=false;
-      setRatio();
-    },endDelay);
+    if(!zooming)scheduleRestore();
   };
-  map.on("movestart",begin);
-  map.on("moveend",end);
+  const startZoom=()=>{
+    if(disposed||changing)return;
+    zooming=true;
+    cancelActivation();
+    cancelRestoration();
+  };
+  const endZoom=()=>{
+    if(disposed||changing)return;
+    zooming=false;
+    if(!moving)scheduleRestore();
+    // If the user is panning as the pinch finishes, the next pan segment can
+    // downscale, but never while a zoom animation remains active.
+    else scheduleActivation();
+  };
+  map.on("movestart",startMove);
+  map.on("moveend",endMove);
+  map.on("zoomstart",startZoom);
+  map.on("zoomend",endZoom);
   options.onChange?.({phase:"idle",pixelRatio:applied});
 
-  return {
+  return{
     update(next){
       if(disposed)return;
       quality=next.quality;
-      const wasEnabled=enabled;
       enabled=next.enabled??true;
       if(!enabled){
         cancelActivation();
-        cancelRestoration();
         reduced=false;
-        setRatio();
-      }else if(moving&&!reduced){
-        // Enabling adaptive scaling during an active gesture starts the timer.
-        if(!wasEnabled)begin();
-        setRatio();
+        // Do not force a canvas resize during a pinch/scroll zoom.
+        if(zooming)scheduleRestore();
+        else setRatio();
+      }else if(zooming){
+        // Quality changes while zooming are deferred until the last zoomend.
+        scheduleRestore();
       }else{
+        scheduleActivation();
         setRatio();
       }
     },
@@ -124,8 +148,10 @@ export function createAdaptiveResolutionController(
       disposed=true;
       cancelActivation();
       cancelRestoration();
-      map.off("movestart",begin);
-      map.off("moveend",end);
+      map.off("movestart",startMove);
+      map.off("moveend",endMove);
+      map.off("zoomstart",startZoom);
+      map.off("zoomend",endZoom);
     }
   };
 }

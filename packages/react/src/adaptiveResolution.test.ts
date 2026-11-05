@@ -28,7 +28,7 @@ class FakeMap{
     this.fire("movestart");
     this.fire("moveend");
   }
-  fire(event:"movestart"|"moveend"){
+  fire(event:"movestart"|"moveend"|"zoomstart"|"zoomend"){
     for(const callback of this.handlers.get(event)??[])callback();
   }
 }
@@ -51,12 +51,12 @@ describe("Atlas adaptive WebGL resolution",()=>{
     });
     expect(changes[0]).toEqual({phase:"idle",pixelRatio:1.5});
     fake.fire("movestart");
-    vi.advanceTimersByTime(69);
+    vi.advanceTimersByTime(139);
     expect(fake.writes).toEqual([]);
     vi.advanceTimersByTime(1);
     expect(fake.writes).toEqual([1]);
     fake.fire("moveend");
-    vi.advanceTimersByTime(179);
+    vi.advanceTimersByTime(419);
     expect(fake.writes).toEqual([1]);
     vi.advanceTimersByTime(1);
     expect(fake.writes).toEqual([1,1.5]);
@@ -71,7 +71,7 @@ describe("Atlas adaptive WebGL resolution",()=>{
       quality:"balanced",devicePixelRatio:3
     });
     fake.fire("movestart");
-    vi.advanceTimersByTime(75);
+    vi.advanceTimersByTime(145);
     expect(fake.writes).toEqual([1]);
     fake.fire("moveend");
     vi.advanceTimersByTime(100);
@@ -79,7 +79,7 @@ describe("Atlas adaptive WebGL resolution",()=>{
     vi.advanceTimersByTime(250);
     expect(fake.writes).toEqual([1]); // first restoration was canceled
     fake.fire("moveend");
-    vi.advanceTimersByTime(180);
+    vi.advanceTimersByTime(420);
     expect(fake.writes).toEqual([1,1.5]);
     ctrl.dispose();
   });
@@ -91,7 +91,7 @@ describe("Atlas adaptive WebGL resolution",()=>{
     ctrl.update({quality:"high",enabled:true});
     expect(fake.ratio).toBe(3);
     fake.fire("movestart");
-    vi.advanceTimersByTime(70);
+    vi.advanceTimersByTime(140);
     expect(fake.ratio).toBe(1);
     ctrl.update({quality:"balanced",enabled:false});
     expect(fake.ratio).toBe(1.5);
@@ -107,6 +107,59 @@ describe("Atlas adaptive WebGL resolution",()=>{
     expect(fake.ratio).toBe(1.5);
     ctrl.dispose();
   });
+  it("never reallocates the canvas during bursts of zoom in/out",()=>{
+    const fake=new FakeMap(1.5);
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3
+    });
+    for(let i=0;i<30;i++){
+      fake.fire("movestart");
+      fake.fire("zoomstart");
+      vi.advanceTimersByTime(155);
+      fake.fire("zoomend");
+      fake.fire("moveend");
+      vi.advanceTimersByTime(50);
+    }
+    expect(fake.writes).toEqual([]);
+    vi.advanceTimersByTime(600);
+    expect(fake.writes).toEqual([]);
+    ctrl.dispose();
+  });
+  it("defer quality changes until zoom animation settles",()=>{
+    const fake=new FakeMap(1.5);
+    const changes:ResolutionState[]=[];
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3,onChange:s=>changes.push(s)
+    });
+    fake.fire("zoomstart");
+    ctrl.update({quality:"high",enabled:true});
+    vi.advanceTimersByTime(700);
+    expect(fake.writes).toEqual([]);
+    fake.fire("zoomend");
+    vi.advanceTimersByTime(419);
+    expect(fake.writes).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(fake.writes).toEqual([3]);
+    expect(changes[changes.length-1]).toEqual({phase:"idle",pixelRatio:3});
+    ctrl.dispose();
+  });
+  it("keeps an already reduced pan canvas unchanged through a pinch zoom",()=>{
+    const fake=new FakeMap(1.5);
+    const ctrl=createAdaptiveResolutionController(asMap(fake),{
+      quality:"balanced",devicePixelRatio:3
+    });
+    fake.fire("movestart");
+    vi.advanceTimersByTime(140);
+    expect(fake.writes).toEqual([1]);
+    fake.fire("zoomstart");
+    fake.fire("moveend");
+    vi.advanceTimersByTime(650);
+    expect(fake.writes).toEqual([1]);
+    fake.fire("zoomend");
+    vi.advanceTimersByTime(420);
+    expect(fake.writes).toEqual([1,1.5]);
+    ctrl.dispose();
+  });
   it("does no resizing when a one-pixel-ratio device is already at its limit",()=>{
     const fake=new FakeMap(1);
     const ctrl=createAdaptiveResolutionController(asMap(fake),{
@@ -115,7 +168,7 @@ describe("Atlas adaptive WebGL resolution",()=>{
     fake.fire("movestart");
     vi.advanceTimersByTime(100);
     fake.fire("moveend");
-    vi.advanceTimersByTime(200);
+    vi.advanceTimersByTime(500);
     expect(fake.writes).toEqual([]);
     ctrl.dispose();
   });
@@ -132,5 +185,7 @@ describe("Atlas adaptive WebGL resolution",()=>{
     expect(fake.writes).toEqual([]);
     expect(fake.handlers.get("movestart")?.size).toBe(0);
     expect(fake.handlers.get("moveend")?.size).toBe(0);
+    expect(fake.handlers.get("zoomstart")?.size).toBe(0);
+    expect(fake.handlers.get("zoomend")?.size).toBe(0);
   });
 });
