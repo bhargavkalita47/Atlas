@@ -16,7 +16,7 @@ Requires Node 22+.
 
 ```sh
 npm install
-npm run dev
+npm run dev  # builds SDK packages before launching playground
 npm run test
 npm run build
 ```
