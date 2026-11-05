@@ -11,16 +11,27 @@ import {
   parseCoordinatePair,pathLengthKm,validPoint,type LatLng,
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
-import {AtlasMap,MarkerLayer,ShapeLayer,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
+import {AtlasMap,AtlasVectorMap,MarkerLayer,ShapeLayer,DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
 
 const GUWAHATI:LatLng={lat:26.1716,lng:91.7606};
 const osmAttribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';
-const cartoAttribution=osmAttribution+' &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>';
 const BASEMAPS:Record<string,TileSource>={
-  standard:{url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",attribution:osmAttribution,maxZoom:19},
-  light:{url:"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",attribution:cartoAttribution,maxZoom:19,subdomains:"abcd"},
-  dark:{url:"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",attribution:cartoAttribution,maxZoom:19,subdomains:"abcd"}
+  standard:{url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",attribution:osmAttribution,maxZoom:19}
 };
+const COLOR_FIELDS:[keyof VectorTheme,string,string][]=[
+  ["land","Land / background","Base map land and background color"],
+  ["water","Rivers and water","Rivers, lakes and water layers"],
+  ["parks","Parks and greenery","Green spaces, woods and landcover"],
+  ["roads","Road surfaces","Road lines and transport layers"],
+  ["buildings","Buildings","Building fills and outlines"],
+  ["labels","Map labels","Map names and text layers"]
+];
+const VECTOR_STYLES=[
+  {id:"liberty",name:"Liberty",tag:"Detailed"},
+  {id:"positron",name:"Positron",tag:"Minimal"},
+  {id:"bright",name:"Bright",tag:"Vibrant"},
+  {id:"dark",name:"Dark",tag:"Night"}
+] as const;
 const INITIAL:MarkerData[]=[
   {id:"sample-1",point:{lat:26.1716,lng:91.7606},title:"Atlas origin",subtitle:"Sample marker",color:"#5365da",draggable:true},
   {id:"sample-2",point:{lat:26.1824,lng:91.7741},title:"Demo waypoint",subtitle:"Draggable test pin",color:"#e98d57",draggable:true},
@@ -91,7 +102,10 @@ export default function App(){
   const [selected,setSelected]=useState<string|null>(null);
   const [markerColor,setMarkerColor]=useState("#5365da");
   const [circleRadius,setCircleRadius]=useState(350);
-  const [baseId,setBaseId]=useState("light");
+  const [renderer,setRenderer]=useState<"vector"|"raster">("vector");
+  const [vectorStyle,setVectorStyle]=useState<keyof typeof KEYLESS_VECTOR_STYLES>("liberty");
+  const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...DEFAULT_VECTOR_THEME});
+  const [baseId,setBaseId]=useState("standard");
   const [customUrl,setCustomUrl]=useState("");
   const [customTiles,setCustomTiles]=useState<TileSource|null>(null);
   const [tileFilter,setTileFilter]=useState("none");
@@ -116,7 +130,7 @@ export default function App(){
   },[]);
   const alert=(text:string)=>{setNotification(text);log(text);};
   useEffect(()=>{localStorage.setItem("atlas.lab.markers",JSON.stringify(markers));},[markers]);
-  const tile=baseId==="custom"&&customTiles ? customTiles : (BASEMAPS[baseId]??BASEMAPS.light)!;
+  const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
   const switchTab=(name:Tab)=>{setTab(name);setMobileMenu(false);};
   const selectMode=(next:Mode)=>{setMode(next);setDraft([]);log("Tool: "+next);};
   const lookup=async(point:LatLng)=>{
@@ -301,7 +315,7 @@ export default function App(){
               explore:"Explore real places and test the map experience.",
               markers:"Place, drag, select, and manage custom pins.",
               draw:"Draw geometry and measure straight-line distances.",
-              styles:"Switch basemaps and tune overlay appearance.",
+              styles:"Edit real vector layers with no paid mapping key.",
               geocode:"Inspect forward and reverse geocoding results.",
               diagnostics:"Verify browser capabilities and SDK behavior."
             }[tab]}</p>
@@ -360,29 +374,61 @@ export default function App(){
               <div className="muted-tip">Measurements are spherical straight-line distances, not walking or driving directions.</div>
             </>}
             {tab==="styles"&&<>
-              <section className="pane-section"><div className="section-label">BASEMAP PRESETS</div>
-                <div className="basemap-grid">{[
-                  {id:"light",name:"Soft light",tag:"Default"},
-                  {id:"standard",name:"OSM classic",tag:"Open data"},
-                  {id:"dark",name:"Midnight",tag:"High contrast"}
-                ].map(t=><button className={"basemap-card basemap-"+t.id+(baseId===t.id?" selected":"")} key={t.id} onClick={()=>{setBaseId(t.id);log("Basemap: "+t.name);}}>
-                  <span className="basemap-preview"><span className="road one"/><span className="road two"/><span className="water"/></span><strong>{t.name}</strong><small>{t.tag}</small>{baseId===t.id&&<Check size={16} className="basemap-check"/>}
-                </button>)}</div>
+              <section className="pane-section"><div className="section-label">RENDER ENGINE</div>
+                <div className="filter-options">
+                  <button className={renderer==="vector"?"selected":""} onClick={()=>setRenderer("vector")}>Vector · editable</button>
+                  <button className={renderer==="raster"?"selected":""} onClick={()=>setRenderer("raster")}>Raster · fallback</button>
+                </div>
+                <div className="muted-tip">Vector mode uses MapLibre and keyless OSM-derived tiles. Raster fallback uses standard OpenStreetMap tiles. Neither requires a paid API key.</div>
               </section>
-              <section className="pane-section"><div className="section-label">CUSTOM RASTER TILES</div>
-                <div className="field"><label htmlFor="tile-url">HTTPS tile URL template</label><input id="tile-url" placeholder="https://.../{z}/{x}/{y}.png" value={customUrl} onChange={e=>setCustomUrl(e.target.value)}/></div>
-                <button className="secondary-button" onClick={()=>{
-                  if(!/^https:\/\//i.test(customUrl)||!["{z}","{x}","{y}"].every(s=>customUrl.includes(s)))return alert("Use an HTTPS URL containing {z}, {x}, and {y}.");
-                  setCustomTiles({url:customUrl,attribution:osmAttribution,maxZoom:19});setBaseId("custom");alert("Custom tile source applied. Set correct provider attribution before production use.");
-                }}>Apply custom tiles</button>
-                <div className="muted-tip">Your tile provider's attribution and usage policy still apply. The custom example currently uses OSM attribution as a placeholder.</div>
-              </section>
-              <section className="pane-section"><div className="section-label">RASTER DISPLAY FILTER</div>
-                <div className="filter-options">{[
-                  ["none","Original"],["saturate(1.45) contrast(1.08)","Vivid"],["grayscale(1)","Monochrome"],["sepia(.35) saturate(.8)","Warm"]
-                ].map(([value,name])=><button className={tileFilter===value?"selected":""} key={value} onClick={()=>setTileFilter(value ?? "none")}>{name}</button>)}</div>
-                <div className="muted-tip">These are image filters. They do not separately restyle roads, water or buildings. Vector style editing is a future module.</div>
-              </section>
+              {renderer==="vector"&&<>
+                <section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
+                  <div className="basemap-grid">{VECTOR_STYLES.map(t=><button
+                    key={t.id} className={"basemap-card basemap-"+(t.id==="dark"?"dark":"light")+(vectorStyle===t.id?" selected":"")}
+                    onClick={()=>{setVectorStyle(t.id);log("Vector style: "+t.name);}}>
+                    <span className="basemap-preview"><span className="road one"/><span className="road two"/><span className="water"/></span>
+                    <strong>{t.name}</strong><small>{t.tag}</small>{vectorStyle===t.id&&<Check size={16} className="basemap-check"/>}
+                  </button>)}</div>
+                  <div className="muted-tip">Hosted by OpenFreeMap, an open-source OSM-derived tile system. No account or key. Self-hosting can be configured later.</div>
+                </section>
+                <section className="pane-section"><div className="section-heading"><div className="section-label">ATLAS VECTOR PALETTE</div>
+                    <button className="quiet-button" onClick={()=>setVectorTheme({...DEFAULT_VECTOR_THEME})}>Reset</button>
+                  </div>
+                  <div className="vector-color-fields">{COLOR_FIELDS.map(([key,label,description])=><label className="vector-color-row" key={key}>
+                    <span><strong>{label}</strong><small>{description}</small></span>
+                    <input type="color" aria-label={label} value={vectorTheme[key]}
+                      onChange={event=>setVectorTheme(old=>({...old,[key]:event.target.value}))}/>
+                  </label>)}</div>
+                  <button className="secondary-button" onClick={()=>{
+                    downloadText("atlas-vector-theme.json",JSON.stringify({version:1,renderer:"maplibre",baseStyle:vectorStyle,colors:vectorTheme},null,2));
+                    log("Exported customizable vector theme");
+                  }}><Download size={16}/> Export Atlas theme JSON</button>
+                  <div className="muted-tip">These settings change feature colors in the vector renderer, not just a raster image filter. Some style layers use provider-specific classifications and may need advanced rules in a later release.</div>
+                </section>
+              </>}
+              {renderer==="raster"&&<>
+                <section className="pane-section"><div className="section-label">RASTER TILE SOURCE</div>
+                  <button className={"secondary-button"+(baseId==="standard"?" engaged":"")}
+                    onClick={()=>setBaseId("standard")}>Standard OpenStreetMap (no key)</button>
+                  <div className="field"><label htmlFor="tile-url">Optional HTTPS raster tile URL</label>
+                    <input id="tile-url" placeholder="https://.../{z}/{x}/{y}.png" value={customUrl} onChange={event=>setCustomUrl(event.target.value)}/></div>
+                  <button className="secondary-button" onClick={()=>{
+                    if(!/^https:\/\//i.test(customUrl)||!["{z}","{x}","{y}"].every(v=>customUrl.includes(v)))
+                      return alert("Use an HTTPS URL containing {z}, {x}, and {y}.");
+                    setCustomTiles({url:customUrl,attribution:osmAttribution,maxZoom:19});
+                    setBaseId("custom");
+                    alert("Custom raster tiles applied. Check provider attribution.");
+                  }}>Apply custom raster tiles</button>
+                </section>
+                <section className="pane-section"><div className="section-label">RASTER IMAGE FILTER</div>
+                  <div className="filter-options">{[
+                    ["none","Original"],["saturate(1.45) contrast(1.08)","Vivid"],
+                    ["grayscale(1)","Monochrome"],["sepia(.35) saturate(.8)","Warm"]
+                  ].map(([value,name])=><button className={tileFilter===value?"selected":""} key={value}
+                    onClick={()=>setTileFilter(value??"none")}>{name}</button>)}</div>
+                  <div className="muted-tip">Raster filters are simple image effects; switch to Vector for individually editable map layers.</div>
+                </section>
+              </>}
             </>}
             {tab==="geocode"&&<>
               <section className="pane-section"><div className="section-label">SEARCH / FORWARD GEOCODING</div>
@@ -419,7 +465,25 @@ export default function App(){
           <div className="inspector-footer"><ShieldCheck size={15}/> No user account or backend required</div>
         </div>
         <main className="map-stage">
-          <AtlasMap
+          {renderer==="vector"?
+            <AtlasVectorMap
+              ref={map}
+              center={view?.center??GUWAHATI}
+              zoom={view?.zoom??13}
+              styleUrl={KEYLESS_VECTOR_STYLES[vectorStyle]}
+              theme={vectorTheme}
+              markers={showMarkers?markers:[]}
+              shapes={showShapes?[...shapes,...draftShape]:[]}
+              selectedId={selected}
+              className="lab-map"
+              onClick={handleMapClick}
+              onViewChange={setView}
+              onSelect={id=>{setSelected(id);log("Selected pin "+id);}}
+              onDrag={(id,point)=>{setMarkers(prev=>prev.map(m=>m.id===id?{...m,point}:m));log("Pin moved to "+coordinateText(point));}}
+              onReady={()=>log("Vector map ready")}
+              onError={(message)=>{setRenderer("raster");alert("Vector tiles unavailable; switched to OSM raster. "+message);}}
+            />
+          :<AtlasMap
             ref={map}
             center={GUWAHATI}
             zoom={13}
@@ -432,7 +496,8 @@ export default function App(){
           >
             {showMarkers&&<MarkerLayer markers={markers} selectedId={selected} onSelect={id=>{setSelected(id);log("Selected pin "+id);}} onDrag={(id,point)=>{setMarkers(s=>s.map(m=>m.id===id?{...m,point}:m));log("Pin moved to "+coordinateText(point));}}/>}
             {showShapes&&<ShapeLayer shapes={[...shapes,...draftShape]}/>}
-          </AtlasMap>
+          </AtlasMap>}
+
           <div className="map-search-wrap">
             <form className="map-search" onSubmit={runSearch}>
               <Search size={21} strokeWidth={2}/><input value={query} onChange={e=>{setQuery(e.target.value);setResults([]);}} aria-label="Search places or coordinates" placeholder="Search places or paste coordinates…" />
@@ -442,7 +507,7 @@ export default function App(){
             {results.length>0&&<div className="search-results">{results.map(r=><button key={r.id} onClick={()=>choosePlace(r)}><MapPin size={17}/><span>{r.name}</span><ArrowRight size={15}/></button>)}</div>}
           </div>
           <div className="map-top-right">
-            <span className="map-provider-label"><span className="online-dot"/> LIVE BASEMAP</span>
+            <span className="map-provider-label"><span className="online-dot"/> {renderer==="vector"?"KEYLESS VECTOR":"OSM RASTER"}</span>
             <button title="Map layers" onClick={()=>switchTab("styles")}><Layers3 size={19}/></button>
           </div>
           <div className="map-actions">
