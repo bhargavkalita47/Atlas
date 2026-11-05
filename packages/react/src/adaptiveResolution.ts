@@ -33,7 +33,9 @@ export function basePixelRatio(quality:ResolutionQuality,deviceRatio:number):num
  *
  * A 420 ms quiet period also coalesces rapid gesture reversals. Both pixel
  * ratio changes and event-handler callbacks are bounded to one transition
- * per long pan and one restoration after it fully ends.
+ * per long mouse pan and one restoration after it fully ends. Touch gestures
+ * keep a fixed framebuffer density until all fingers are released; resizing
+ * during a stationary two-finger hold is unsafe even if MapLibre says idle.
  */
 export function createAdaptiveResolutionController(
   map:MapLibreMap,options:AdaptiveResolutionOptions
@@ -51,6 +53,11 @@ export function createAdaptiveResolutionController(
   let reduced=false;
   let disposed=false;
   let changing=false;
+  // Browser touch events and pointer events can coexist. Track both without
+  // double-counting contacts; a gesture ends only after *both* are clear.
+  let touchCount=0;
+  const touchPointerIds=new Set<number>();
+  const hasActiveTouch=()=>touchCount>0||touchPointerIds.size>0;
   let activation:ReturnType<typeof setTimeout>|undefined;
   let restoration:ReturnType<typeof setTimeout>|undefined;
   const cancelActivation=()=>{
@@ -61,7 +68,7 @@ export function createAdaptiveResolutionController(
   };
   const setRatio=()=>{
     // Never resize the framebuffer during an active zoom animation.
-    if(disposed||zooming||changing)return;
+    if(disposed||zooming||changing||hasActiveTouch())return;
     const baseline=basePixelRatio(quality,device);
     const next=enabled&&reduced?Math.min(baseline,1):baseline;
     if(Math.abs(next-applied)<.01)return;
@@ -73,21 +80,22 @@ export function createAdaptiveResolutionController(
     }finally{changing=false;}
   };
   const scheduleActivation=()=>{
-    if(disposed||!enabled||reduced||zooming||!moving||activation!==undefined)return;
+    if(disposed||!enabled||reduced||zooming||hasActiveTouch()||!moving||activation!==undefined)return;
     activation=setTimeout(()=>{
       activation=undefined;
-      if(disposed||!moving||zooming||!enabled)return;
+      if(disposed||!moving||zooming||hasActiveTouch()||!enabled)return;
       reduced=true;
       setRatio();
     },activationDelay);
   };
   const scheduleRestore=()=>{
     cancelRestoration();
+    if(hasActiveTouch())return;
     // Delay even if not reduced: a quality toggle during zoom is applied when
     // zoom settles, without triggering an expensive resize mid-animation.
     restoration=setTimeout(()=>{
       restoration=undefined;
-      if(disposed||moving||zooming)return;
+      if(disposed||moving||zooming||hasActiveTouch())return;
       reduced=false;
       setRatio();
     },restoreDelay);
@@ -122,18 +130,56 @@ export function createAdaptiveResolutionController(
   map.on("moveend",endMove);
   map.on("zoomstart",startZoom);
   map.on("zoomend",endZoom);
-  // A mid-gesture map.resize() may interrupt MapLibre's drag handler before
-  // it emits moveend. Always release the pending downshift after pointerup,
-  // even when that movement-end event is missed.
+  // MapLibre can emit moveend/zoomend while a stationary pinch is still
+  // touching the glass. Even a delayed WebGL resize at that point disrupts
+  // the gesture. Never resize with ANY finger on the map.
+  const inputTarget=map.getCanvasContainer?.()??map.getCanvas?.();
   const ownerWindow=map.getCanvas?.()?.ownerDocument?.defaultView;
-  const releasePointer=()=>{
-    if(moving)endMove();
+  const pauseForTouch=()=>{
+    cancelActivation();
+    cancelRestoration();
   };
+  const onTouchStart=(event:Event)=>{
+    touchCount=(event as TouchEvent).touches?.length??touchCount;
+    pauseForTouch();
+  };
+  const releaseAllContacts=()=>{
+    if(hasActiveTouch())return;
+    // A resize may cause MapLibre to skip moveend. Pointer release is an
+    // independent, reliable lifecycle boundary for ordinary dragging.
+    if(moving)endMove();
+    else if(!zooming)scheduleRestore();
+  };
+  const onTouchEnd=(event:Event)=>{
+    touchCount=(event as TouchEvent).touches?.length??0;
+    releaseAllContacts();
+  };
+  const onPointerDown=(event:Event)=>{
+    const pointer=event as PointerEvent;
+    if(pointer.pointerType!=="touch")return;
+    touchPointerIds.add(pointer.pointerId);
+    pauseForTouch();
+  };
+  const releasePointer=(event:Event)=>{
+    const pointer=event as PointerEvent;
+    if(pointer.pointerType==="touch")touchPointerIds.delete(pointer.pointerId);
+    releaseAllContacts();
+  };
+  const releaseMouse=()=>releaseAllContacts();
+  const releaseBlur=()=>{
+    // In case the browser cancels a gesture without delivering touchend.
+    touchCount=0;
+    touchPointerIds.clear();
+    releaseAllContacts();
+  };
+  inputTarget?.addEventListener("touchstart",onTouchStart,{capture:true,passive:true});
+  inputTarget?.addEventListener("pointerdown",onPointerDown,{capture:true,passive:true});
   ownerWindow?.addEventListener("pointerup",releasePointer,{passive:true});
   ownerWindow?.addEventListener("pointercancel",releasePointer,{passive:true});
-  ownerWindow?.addEventListener("touchend",releasePointer,{passive:true});
-  ownerWindow?.addEventListener("mouseup",releasePointer,{passive:true});
-  ownerWindow?.addEventListener("blur",releasePointer);
+  ownerWindow?.addEventListener("touchend",onTouchEnd,{passive:true});
+  ownerWindow?.addEventListener("touchcancel",onTouchEnd,{passive:true});
+  ownerWindow?.addEventListener("mouseup",releaseMouse,{passive:true});
+  ownerWindow?.addEventListener("blur",releaseBlur);
   options.onChange?.({phase:"idle",pixelRatio:applied});
 
   return{
@@ -164,11 +210,16 @@ export function createAdaptiveResolutionController(
       map.off("moveend",endMove);
       map.off("zoomstart",startZoom);
       map.off("zoomend",endZoom);
+      inputTarget?.removeEventListener("touchstart",onTouchStart,true);
+      inputTarget?.removeEventListener("pointerdown",onPointerDown,true);
       ownerWindow?.removeEventListener("pointerup",releasePointer);
       ownerWindow?.removeEventListener("pointercancel",releasePointer);
-      ownerWindow?.removeEventListener("touchend",releasePointer);
-      ownerWindow?.removeEventListener("mouseup",releasePointer);
-      ownerWindow?.removeEventListener("blur",releasePointer);
+      ownerWindow?.removeEventListener("touchend",onTouchEnd);
+      ownerWindow?.removeEventListener("touchcancel",onTouchEnd);
+      ownerWindow?.removeEventListener("mouseup",releaseMouse);
+      ownerWindow?.removeEventListener("blur",releaseBlur);
+      touchPointerIds.clear();
+      touchCount=0;
     }
   };
 }
