@@ -7,30 +7,9 @@ import type { LatLng, MarkerData, Shape } from "@atlas/core";
 import { escapeHtml, safeHex, validPoint } from "@atlas/core";
 import type { AtlasMapHandle, ViewState } from "./index";
 
-export type VectorTheme = {
-  land: string;
-  water: string;
-  parks: string;
-  roads: string;
-  buildings: string;
-  labels: string;
-};
-
-export const DEFAULT_VECTOR_THEME: VectorTheme = {
-  land: "#f2f2ed",
-  water: "#b9dbe9",
-  parks: "#c8dfc1",
-  roads: "#ffffff",
-  buildings: "#deddea",
-  labels: "#364555",
-};
-
-export const KEYLESS_VECTOR_STYLES = {
-  liberty: "https://tiles.openfreemap.org/styles/liberty",
-  bright: "https://tiles.openfreemap.org/styles/bright",
-  positron: "https://tiles.openfreemap.org/styles/positron",
-  dark: "https://tiles.openfreemap.org/styles/dark",
-} as const;
+import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type VectorPerformanceEvent} from "./vectorConfig";
+export {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES} from "./vectorConfig";
+export type {VectorTheme,VectorPerformanceEvent} from "./vectorConfig";
 
 type EditableCategory = keyof VectorTheme;
 function categorize(id: string, sourceLayer: string | undefined, layerType: string): EditableCategory | null {
@@ -48,23 +27,49 @@ function categorize(id: string, sourceLayer: string | undefined, layerType: stri
       /transportation/.test(source)) return "roads";
   return null;
 }
-export function applyVectorTheme(map: MapLibreMap, theme: VectorTheme): void {
-  const style = map.getStyle();
-  if (!style?.layers) return;
-  for (const layer of style.layers) {
-    const sourceLayer = "source-layer" in layer ? layer["source-layer"] : undefined;
-    const category = categorize(layer.id, sourceLayer, layer.type);
-    if (!category) continue;
-    const color = safeHex(theme[category], DEFAULT_VECTOR_THEME[category]);
-    const property = layer.type === "background" ? "background-color"
-      : layer.type === "fill" ? "fill-color"
-      : layer.type === "line" ? "line-color"
-      : layer.type === "symbol" ? "text-color"
-      : layer.type === "fill-extrusion" ? "fill-extrusion-color"
-      : null;
-    if (!property || (layer.type === "symbol" && category !== "labels")) continue;
-    try { map.setPaintProperty(layer.id, property, color); }
-    catch { /* Unsupported layer-specific properties remain untouched. */ }
+type ThemeBinding = {id:string; property:string; category:EditableCategory};
+const themeState = new WeakMap<MapLibreMap, {bindings:ThemeBinding[]; colors:Map<string,string>}>();
+
+/** Call when a new MapLibre style has loaded: its layers are new objects. */
+export function invalidateVectorThemeCache(map:MapLibreMap):void{
+  themeState.delete(map);
+}
+function resolveThemeBindings(map:MapLibreMap):{bindings:ThemeBinding[];colors:Map<string,string>}{
+  const cached=themeState.get(map);
+  if(cached)return cached;
+  const style=map.getStyle();
+  const bindings:ThemeBinding[]=[];
+  for(const layer of style?.layers??[]){
+    const sourceLayer="source-layer" in layer?layer["source-layer"]:undefined;
+    const category=categorize(layer.id,sourceLayer,layer.type);
+    if(!category)continue;
+    const property=layer.type==="background"?"background-color"
+      :layer.type==="fill"?"fill-color"
+      :layer.type==="line"?"line-color"
+      :layer.type==="symbol"?"text-color"
+      :layer.type==="fill-extrusion"?"fill-extrusion-color"
+      :null;
+    if(!property||(layer.type==="symbol"&&category!=="labels"))continue;
+    bindings.push({id:layer.id,category,property});
+  }
+  const data={bindings,colors:new Map<string,string>()};
+  themeState.set(map,data);
+  return data;
+}
+/**
+ * Only changes layers whose requested color changed. Dragging a color picker
+ * no longer reapplies every style paint property on every frame.
+ */
+export function applyVectorTheme(map:MapLibreMap,theme:VectorTheme):void{
+  const state=resolveThemeBindings(map);
+  for(const {id,category,property} of state.bindings){
+    const color=safeHex(theme[category],DEFAULT_VECTOR_THEME[category]);
+    const key=id+":"+property;
+    if(state.colors.get(key)===color)continue;
+    try{
+      map.setPaintProperty(id,property,color);
+      state.colors.set(key,color);
+    }catch{ /* Preserve unsupported provider-specific layers. */ }
   }
 }
 
@@ -82,6 +87,10 @@ export interface AtlasVectorMapProps {
   onViewChange?: (view: ViewState) => void;
   onReady?: () => void;
   onError?: (message: string) => void;
+  /** Balanced caps pixel density; high preserves full device resolution. */
+  renderQuality?: "balanced" | "high";
+  /** First style-ready and first fully-idle durations, reset on style switches. */
+  onPerformance?: (event:VectorPerformanceEvent) => void;
   className?: string;
   style?: CSSProperties;
 }
@@ -166,7 +175,7 @@ type ManagedMarker = {
 export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(function AtlasVectorMap({
   center, zoom=13, styleUrl=KEYLESS_VECTOR_STYLES.liberty,
   theme,markers,shapes,selectedId,onSelect,onDrag,onClick,
-  onViewChange,onReady,onError,className,style,
+  onViewChange,onReady,onError,onPerformance,renderQuality="balanced",className,style,
 },ref){
   const host=useRef<HTMLDivElement>(null);
   const map=useRef<MapLibreMap|null>(null);
@@ -174,12 +183,13 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   const currentStyleUrl=useRef(styleUrl);
   const restartStyleWatchdog=useRef<(()=>void)|null>(null);
   const reportFatalStyleError=useRef<((message:string)=>void)|null>(null);
-  const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError});
-  latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError};
+  const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance});
+  latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance};
   const shapesRef=useRef(shapes);
   shapesRef.current=shapes;
   const themeRef=useRef(theme);
   themeRef.current=theme;
+  const qualityRef=useRef(renderQuality);
 
   useEffect(()=>{
     if(!host.current)return;
@@ -188,6 +198,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     let ready=false;
     let lastError="";
     let watchdog:ReturnType<typeof setTimeout>|undefined;
+    let styleBeganAt=performance.now();
+    let reportedIdle=false;
     const fail=(message:string)=>{
       if(disposed||failed)return;
       failed=true;
@@ -195,6 +207,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       latest.current.onError?.(message);
     };
     const armWatchdog=()=>{
+      styleBeganAt=performance.now();
+      reportedIdle=false;
       lastError="";
       if(watchdog)clearTimeout(watchdog);
       watchdog=setTimeout(()=>{
@@ -210,6 +224,12 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
         center:[center.lng,center.lat],
         zoom,
         maxZoom:19,
+        // A 3x DPR phone otherwise renders about 4x as many pixels as 1.5x.
+        pixelRatio:qualityRef.current==="balanced"?
+          Math.min(window.devicePixelRatio||1,1.5):undefined,
+        fadeDuration:0,
+        renderWorldCopies:false,
+        trackResize:false,
       });
     }catch(error){
       fail(error instanceof Error?error.message:"WebGL map initialization failed.");
@@ -222,10 +242,16 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     const installOverlays=()=>{
       if(disposed||failed)return;
       try{
+        invalidateVectorThemeCache(instance);
         installShapeLayers(instance);
         const source=instance.getSource(shapeSource) as GeoJSONSource|undefined;
         source?.setData(asGeoJson(shapesRef.current));
         applyVectorTheme(instance,themeRef.current);
+        latest.current.onPerformance?.({
+          phase:"style",
+          elapsedMs:Math.round(performance.now()-styleBeganAt),
+          styleUrl:currentStyleUrl.current
+        });
         if(watchdog)clearTimeout(watchdog);
         if(!ready){
           ready=true;
@@ -251,6 +277,15 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     // style.load is the correct boundary after every setStyle(): sources and
     // layers owned by the app must be reattached to the fresh style.
     instance.on("style.load",installOverlays);
+    instance.on("idle",()=>{
+      if(disposed||!ready||reportedIdle||failed)return;
+      reportedIdle=true;
+      latest.current.onPerformance?.({
+        phase:"idle",
+        elapsedMs:Math.round(performance.now()-styleBeganAt),
+        styleUrl:currentStyleUrl.current
+      });
+    });
     armWatchdog();
     const resize=()=>instance.resize();
     const observer=typeof ResizeObserver!=="undefined"?new ResizeObserver(resize):null;
@@ -284,6 +319,15 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       reportFatalStyleError.current?.(error instanceof Error?error.message:"Unable to load map style.");
     }
   },[styleUrl]);
+
+  // Pixel density can be adjusted at runtime without rebuilding the map.
+  useEffect(()=>{
+    if(qualityRef.current===renderQuality)return;
+    qualityRef.current=renderQuality;
+    map.current?.setPixelRatio(renderQuality==="balanced"
+      ? Math.min(window.devicePixelRatio||1,1.5)
+      : window.devicePixelRatio||1);
+  },[renderQuality]);
 
   // The style.load handler re-applies the most recent theme after a style
   // change, including changes requested while style data was still loading.

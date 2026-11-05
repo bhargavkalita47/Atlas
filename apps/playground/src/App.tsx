@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useMemo,useRef,useState,type FormEvent} from "react";
+import {lazy,Suspense,useCallback,useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 import {
   Activity,ArrowLeft,ArrowRight,Check,CheckCircle2,ChevronDown,
   Circle,Code2,Compass,Copy,Download,ExternalLink,Focus,GitBranch,
@@ -12,7 +12,8 @@ import {
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
 import {AtlasMap,MarkerLayer,ShapeLayer,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
-import {AtlasVectorMap,DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme} from "@atlas/react/vector";
+import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
+const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
 
 const GUWAHATI:LatLng={lat:26.1716,lng:91.7606};
 const osmAttribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';
@@ -93,7 +94,9 @@ export default function App(){
   const [circleRadius,setCircleRadius]=useState(350);
   const [renderer,setRenderer]=useState<"vector"|"raster">("vector");
   const [vectorError,setVectorError]=useState<string|null>(null);
-  const [vectorStyle,setVectorStyle]=useState<keyof typeof KEYLESS_VECTOR_STYLES>("liberty");
+  const [vectorStyle,setVectorStyle]=useState<keyof typeof KEYLESS_VECTOR_STYLES>("positron");
+  const [quality,setQuality]=useState<"balanced"|"high">("balanced");
+  const [vectorPerformance,setVectorPerformance]=useState<{style?:number;idle?:number}>({});
   const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...DEFAULT_VECTOR_THEME});
   const [baseId,setBaseId]=useState("standard");
   const [customUrl,setCustomUrl]=useState("");
@@ -115,6 +118,9 @@ export default function App(){
   const importRef=useRef<HTMLInputElement>(null);
   const uid=useRef(20);
   const nextId=()=>String(++uid.current)+"-"+Date.now().toString(36);
+  const captureVectorMetric=useCallback((event:VectorPerformanceEvent)=>{
+    setVectorPerformance(previous=>({...previous,[event.phase]:event.elapsedMs}));
+  },[]);
   const log=useCallback((text:string)=>{
     setEvents(s=>[{id:Date.now()+Math.random(),time:new Date().toLocaleTimeString(),text},...s].slice(0,16));
   },[]);
@@ -349,6 +355,14 @@ export default function App(){
                 </div>
                 <div className="muted-tip">Vector mode uses MapLibre and keyless OSM-derived tiles. Raster fallback uses standard OpenStreetMap tiles. Neither requires a paid API key.</div>
               </section>
+              {renderer==="vector"&&<section className="pane-section">
+                <div className="section-label">RENDERING QUALITY</div>
+                <div className="filter-options">
+                  <button className={quality==="balanced"?"selected":""} onClick={()=>setQuality("balanced")}>Balanced · faster</button>
+                  <button className={quality==="high"?"selected":""} onClick={()=>setQuality("high")}>High · sharper</button>
+                </div>
+                <div className="muted-tip">Balanced limits pixel density to 1.5× on high-DPI screens. High uses your device's full resolution. Map styles and geographical detail remain editable.</div>
+              </section>}
               {renderer==="vector"&&<>
                 <section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
                   <div className="basemap-grid">{VECTOR_STYLES.map(t=><button
@@ -420,6 +434,8 @@ export default function App(){
                 <div className="detail-card">
                   <span>Active renderer</span><strong>{renderer==="vector"?"MapLibre GL JS":"Leaflet raster"}</strong>
                   {vectorError&&<div className="muted-tip">Previous vector error: {vectorError}</div>}
+                  {vectorPerformance.style!==undefined&&<div className="muted-tip">Vector style ready: {vectorPerformance.style} ms</div>}
+                  {vectorPerformance.idle!==undefined&&<div className="muted-tip">Vector fully idle: {vectorPerformance.idle} ms</div>}
                 </div>
                 {renderer==="raster"&&<button className="secondary-button" style={{marginTop:10}} onClick={()=>{
                   setVectorError(null);
@@ -444,12 +460,19 @@ export default function App(){
         </div>
         <main className="map-stage">
           {renderer==="vector"?
+            <Suspense fallback={<div className="vector-loading-state" role="status">
+              <span className="spinner"/>
+              <strong>Starting Atlas vector map</strong>
+              <small>Loading the rendering engine…</small>
+            </div>}>
             <AtlasVectorMap
               ref={map}
               center={view?.center??GUWAHATI}
               zoom={view?.zoom??13}
               styleUrl={KEYLESS_VECTOR_STYLES[vectorStyle]}
               theme={vectorTheme}
+              renderQuality={quality}
+              onPerformance={captureVectorMetric}
               markers={visibleMarkers}
               shapes={visibleShapes}
               selectedId={selected}
@@ -465,6 +488,7 @@ export default function App(){
                 alert("Vector renderer unavailable; switched to OSM raster. "+message);
               }}
             />
+            </Suspense>
           :<AtlasMap
             ref={map}
             center={view?.center??GUWAHATI}
