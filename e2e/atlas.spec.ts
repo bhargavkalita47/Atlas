@@ -164,3 +164,67 @@ test.describe("zoom-safe adaptive resolution on dense displays",()=>{
     await expect(canvas).toBeVisible();
   });
 });
+
+test.describe("mobile multi-touch regression",()=>{
+  test.use({viewport:{width:393,height:852},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+
+  test("pinch, hold two fingers stationary, then pinch again without freezing",async({page})=>{
+    await page.goto("/");
+    const canvas=page.locator(".maplibregl-canvas");
+    await expect(canvas).toBeVisible();
+    await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+
+    const bounds=await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    const x=Math.round(bounds!.x+bounds!.width/2);
+    const y=Math.round(bounds!.y+bounds!.height*.55);
+    const cdp=await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setTouchEmulationEnabled",{enabled:true,maxTouchPoints:5});
+    const points=(spread:number)=>[
+      {x:x-spread,y,id:1},{x:x+spread,y,id:2}
+    ];
+    const dispatch=(type:"touchStart"|"touchMove"|"touchEnd",spread=0)=>
+      cdp.send("Input.dispatchTouchEvent",{
+        type,touchPoints:type==="touchEnd"?[]:points(spread)
+      });
+    const ratio=()=>canvas.evaluate(element=>{
+      const value=element as HTMLCanvasElement;
+      return value.clientWidth?value.width/value.clientWidth:0;
+    });
+    const zoom=async()=>{
+      const value=await page.locator(".footer-pill").textContent();
+      return Number(value?.replace(/^Z/,""));
+    };
+    const initialRatio=await ratio();
+    const initialZoom=await zoom();
+    expect(initialRatio).toBeGreaterThan(1.4);
+
+    await dispatch("touchStart",35);
+    for(const spread of [45,55,65,75,85,95]){
+      await dispatch("touchMove",spread);
+      await page.waitForTimeout(25);
+    }
+    // This is the reported freeze: MapLibre may report moveend/zoomend
+    // while both fingers remain on the glass. Canvas must not be resized.
+    await page.waitForTimeout(1000);
+    expect(await ratio()).toBeCloseTo(initialRatio,1);
+    await dispatch("touchMove",110);
+    await page.waitForTimeout(100);
+    expect(await ratio()).toBeCloseTo(initialRatio,1);
+    await dispatch("touchEnd");
+
+    await expect.poll(zoom,{timeout:5000}).toBeGreaterThan(initialZoom+.1);
+    const firstZoom=await zoom();
+
+    // Another pinch must still affect the map after the first held gesture.
+    await dispatch("touchStart",40);
+    for(const spread of [50,60,70,80,90]){
+      await dispatch("touchMove",spread);
+      await page.waitForTimeout(25);
+    }
+    await dispatch("touchEnd");
+    await expect.poll(zoom,{timeout:5000}).toBeGreaterThan(firstZoom+.1);
+    expect(await ratio()).toBeCloseTo(initialRatio,1);
+    await cdp.detach();
+  });
+});
