@@ -52,9 +52,17 @@ export const AtlasMap = forwardRef<AtlasMapHandle, AtlasMapProps>(function Atlas
     const changed=()=>latest.current.onViewChange?.(readView(m));
     m.on("moveend zoomend",changed);
     m.whenReady(()=>{changed();latest.current.onReady?.();});
-    const observer=new ResizeObserver(()=>m.invalidateSize({pan:false}));
-    observer.observe(host.current);
-    return ()=>{observer.disconnect();instance.current=null;setMap(null);m.remove();};
+    const refresh=()=>m.invalidateSize({pan:false});
+    const observer=typeof ResizeObserver!=="undefined"?new ResizeObserver(refresh):null;
+    if(observer)observer.observe(host.current);
+    else window.addEventListener("resize",refresh);
+    return ()=>{
+      observer?.disconnect();
+      if(!observer)window.removeEventListener("resize",refresh);
+      instance.current=null;
+      setMap(null);
+      m.remove();
+    };
   },[]);
   useEffect(()=>{
     const m=instance.current;
@@ -87,37 +95,93 @@ export interface MarkerLayerProps {
   onSelect?: (id:string)=>void;
   onDrag?: (id:string, point:LatLng)=>void;
 }
+type LeafletMarkerEntry={
+  marker:L.Marker;
+  title:string;
+  color:string;
+  draggable:boolean;
+  point:LatLng;
+};
+const iconFor=(color:string)=>L.divIcon({
+  className:"atlas-pin",
+  html:'<div class="atlas-pin-core" style="--pin-color:'+safeHex(color)+'"></div>',
+  iconSize:[34,40],iconAnchor:[17,37]
+});
 export function MarkerLayer({markers,selectedId,onSelect,onDrag}:MarkerLayerProps){
-  const map=useAtlasMap(),layers=useRef<L.LayerGroup|null>(null);
-  const callbacks=useRef({onSelect,onDrag});callbacks.current={onSelect,onDrag};
+  const map=useAtlasMap();
+  const group=useRef<L.LayerGroup|null>(null);
+  const nodes=useRef(new Map<string,LeafletMarkerEntry>());
+  const callbacks=useRef({onSelect,onDrag});
+  callbacks.current={onSelect,onDrag};
   useEffect(()=>{
     if(!map)return;
-    const group=L.layerGroup().addTo(map);layers.current=group;
-    return ()=>{group.remove();layers.current=null;};
+    const layer=L.layerGroup().addTo(map);
+    group.current=layer;
+    return ()=>{
+      layer.remove();
+      group.current=null;
+      nodes.current.clear();
+    };
   },[map]);
   useEffect(()=>{
-    const group=layers.current;
-    if(!group)return;
-    group.clearLayers();
-    for(const marker of markers){
-      if(!validPoint(marker.point))continue;
-      const icon=L.divIcon({
-        className:"atlas-pin"+(marker.id===selectedId?" selected":""),
-        html:'<div class="atlas-pin-core" style="--pin-color:'+safeHex(marker.color)+'"></div>',
-        iconSize:[34,40],iconAnchor:[17,37]
+    const layer=group.current;
+    if(!layer)return;
+    const wanted=new Set<string>();
+    for(const value of markers){
+      if(!validPoint(value.point)||!value.id)continue;
+      wanted.add(value.id);
+      const color=safeHex(value.color);
+      const draggable=!!value.draggable;
+      const current=nodes.current.get(value.id);
+      if(current){
+        if(current.point.lat!==value.point.lat||current.point.lng!==value.point.lng){
+          current.marker.setLatLng([value.point.lat,value.point.lng]);
+          current.point=value.point;
+        }
+        if(current.color!==color){
+          current.marker.setIcon(iconFor(color));
+          current.color=color;
+        }
+        if(current.title!==value.title){
+          current.title=value.title;
+          if(current.marker.getTooltip())current.marker.setTooltipContent(escapeHtml(value.title));
+          else if(value.title)current.marker.bindTooltip(escapeHtml(value.title),{direction:"top",offset:[0,-23]});
+          current.marker.getElement()?.setAttribute("aria-label",value.title);
+        }
+        if(current.draggable!==draggable){
+          if(draggable)current.marker.dragging?.enable();
+          else current.marker.dragging?.disable();
+          current.draggable=draggable;
+        }
+        continue;
+      }
+      const marker=L.marker([value.point.lat,value.point.lng],{
+        icon:iconFor(color),draggable,title:value.title,alt:value.title
+      }).addTo(layer);
+      if(value.title)marker.bindTooltip(escapeHtml(value.title),{direction:"top",offset:[0,-23]});
+      const id=value.id;
+      marker.on("click",()=>callbacks.current.onSelect?.(id));
+      marker.on("dragend",()=>{
+        const p=marker.getLatLng();
+        callbacks.current.onDrag?.(id,{lat:p.lat,lng:p.lng});
       });
-      const item=L.marker([marker.point.lat,marker.point.lng],{
-        icon,draggable:!!marker.draggable,
-        title:marker.title,alt:marker.title
-      }).addTo(group);
-      if(marker.title) item.bindTooltip(escapeHtml(marker.title),{direction:"top",offset:[0,-23]});
-      item.on("click",()=>callbacks.current.onSelect?.(marker.id));
-      if(marker.draggable)item.on("dragend",()=>{
-        const p=item.getLatLng();
-        callbacks.current.onDrag?.(marker.id,{lat:p.lat,lng:p.lng});
-      });
+      nodes.current.set(id,{marker,title:value.title,color,draggable,point:value.point});
     }
-  },[map,markers,selectedId]);
+    for(const [id,item] of nodes.current){
+      if(!wanted.has(id)){
+        layer.removeLayer(item.marker);
+        nodes.current.delete(id);
+      }
+    }
+    for(const [id,item] of nodes.current){
+      item.marker.getElement()?.classList.toggle("selected",id===selectedId);
+    }
+  },[map,markers]);
+  useEffect(()=>{
+    for(const [id,item] of nodes.current){
+      item.marker.getElement()?.classList.toggle("selected",id===selectedId);
+    }
+  },[selectedId]);
   return null;
 }
 export function ShapeLayer({shapes}:{shapes:Shape[]}){
