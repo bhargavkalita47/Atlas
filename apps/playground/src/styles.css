@@ -99,3 +99,9 @@
 .basemap-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .basemap-grid .basemap-card{min-height:115px}
 @media(max-width:700px){.vector-color-row{padding:7px 9px}.vector-color-row input[type=color]{width:36px;height:34px}}
+
+/* Visible, accessible loading state while the optional WebGL engine arrives. */
+.vector-loading-state{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:11px;background:linear-gradient(160deg,#e8edf5,#d9e3e7);color:#283951;text-align:center}
+.vector-loading-state .spinner{display:block;border:3px solid #b8c7dd;border-top-color:#5265d5;border-radius:50%;width:27px;height:27px;animation:spin .8s linear infinite}
+.vector-loading-state strong{font-size:13px}
+.vector-loading-state small{font-size:11px;color:#667c95}

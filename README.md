@@ -2,7 +2,7 @@
 
 A reusable, provider-independent mapping toolkit with an interactive testing playground.
 
-**Status:** v0.2 vector styling preview (pre-release). This repo is deliberately separate from CivicWatch and Shikshak.
+**Status:** v0.2 vector styling preview, with an active stabilization branch (pre-release). This repo is deliberately separate from CivicWatch and Shikshak.
 
 ## Repository layout
 
@@ -19,9 +19,11 @@ npm install
 npm run dev  # builds SDK packages before launching playground
 npm run test
 npm run build
+npx playwright install chromium # first time only
+npm run test:e2e           # browser smoke tests
 ```
 
-The development server is at http://localhost:5173. The playground initializes the MapLibre v6 browser worker using the Vite `?worker&url` import before rendering the vector map. Applications using `@atlas/react` must configure the MapLibre worker for their bundler (see `packages/react/README.md`).
+The development server is at http://localhost:5173. The playground initializes the MapLibre v6 browser worker using the Vite `?worker&url` import before rendering the vector map. Applications using `@atlas/react/vector` must configure the MapLibre worker for their bundler (see `packages/react/README.md`).
 
 ## Cloudflare deployment
 
@@ -30,9 +32,18 @@ A root `wrangler.jsonc` serves the playground as static assets. Connect this rep
 - Build output directory (Pages): `apps/playground/dist`
 - Root directory: repository root
 
-For Workers, deploy `npx wrangler deploy` after building.
+For Workers, deploy `npx wrangler deploy` after building **only from the production branch**.
 
-## Features available in v0.1
+For the isolated `dev/stabilization` branch, the configured Cloudflare build uses `npx wrangler preview` rather than a production deploy. The root `wrangler.jsonc` includes a required `"previews": {}` block. This is supported by Wrangler 4.135.0+ and allows separate previews without overwriting production. If deploying manually on that branch:
+
+```sh
+npm run build
+npx wrangler preview
+```
+
+The Cloudflare Workers build configuration should use `npm run build` as build command, and `npx wrangler preview` as preview deploy command. Public tile/geocoder endpoints still have separate usage policies.
+
+## Features available in the current preview
 
 Map pan/zoom, vector theme editing (land, water, parks, roads, buildings and labels), keyless vector tiles via OpenFreeMap, an OSM raster fallback, selectable and draggable markers, shapes and distance measurement, location search, reverse lookup, browser geolocation, GeoJSON export, event logging and diagnostics.
 
@@ -46,4 +57,4 @@ Atlas contains mapping capabilities, never CivicWatch or Shikshak business logic
 
 Atlas source is MIT licensed. Leaflet is BSD-2-Clause; MapLibre is BSD-3-Clause. OpenStreetMap data is available under ODbL and requires attribution. Photon and Nominatim are separate services with their own licenses and hosting policies. The playground's default editable vector map uses the third-party OpenFreeMap public instance, which requires no registration or API key. It remains a hosted service, not Atlas-owned infrastructure; self-hosting is optional. The public OSM raster service is not a production SLA. Do not proxy or bulk-fetch its tiles.
 
-See `LICENSE` and `docs/ARCHITECTURE.md` for details.
+See `LICENSE`, `docs/ARCHITECTURE.md`, `docs/STABILIZATION.md`, and `docs/PERFORMANCE.md` for details.

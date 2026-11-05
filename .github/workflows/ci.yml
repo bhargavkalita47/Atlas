@@ -13,3 +13,14 @@ jobs:
           node-version: "22"
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - run: npm pack --workspace=@atlas/core --dry-run && npm pack --workspace=@atlas/react --dry-run
+      # E2E exercises the actual MapLibre worker in Chromium instead of
+      # relying on a green TypeScript build alone.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: atlas-browser-test-results
+          path: test-results/
+          if-no-files-found: ignore

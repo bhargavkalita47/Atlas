@@ -1,19 +1,65 @@
-# @atlas/react
+# Atlas React adapters
 
-React adapters for Leaflet raster maps and MapLibre vector maps.
+Two entry points keep Leaflet-only applications from importing the GPU-based MapLibre implementation.
 
-Import `leaflet/dist/leaflet.css` in your host application. Import `AtlasMap`, `MarkerLayer`, `ShapeLayer` and `AtlasMapHandle` from `@atlas/react`.
+## Lightweight Leaflet adapter
 
-Use `AtlasVectorMap` with `DEFAULT_VECTOR_THEME`, `KEYLESS_VECTOR_STYLES` and `VectorTheme` for a basic editable vector layer palette. Import `maplibre-gl/dist/maplibre-gl.css` in the host application. The vector renderer uses keyless OSM-derived tiles from OpenFreeMap by default. The Leaflet raster adapter still cannot edit imagery baked into raster tiles.
-
-## MapLibre v6 worker setup (required in Vite consumers)
-
-MapLibre 6 uses a separately bundled browser Web Worker. The consuming Vite application must configure its URL **before** rendering `AtlasVectorMap`:
-
-```ts
-import { setWorkerUrl } from "maplibre-gl";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-setWorkerUrl(maplibreWorkerUrl);
+```tsx
+import {AtlasMap,MarkerLayer,ShapeLayer} from "@atlas/react";
+import "leaflet/dist/leaflet.css";
 ```
 
-This worker is part of MapLibre, not Cloudflare Workers and not an API-key service. The `?worker&url` import is important: Vite bundles the worker and its module dependencies and serves the asset from the application's own origin. For other bundlers, consult MapLibre's worker installation instructions; Atlas intentionally keeps the SDK bundler-independent.
+Leaflet uses raster tiles. Raster tiles cannot be individually restyled into custom roads or buildings.
+
+## Editable MapLibre vector adapter
+
+Install `maplibre-gl` alongside `@atlas/react` when using the optional vector adapter.
+
+```tsx
+import {AtlasVectorMap,DEFAULT_VECTOR_THEME} from "@atlas/react/vector";
+import {setWorkerUrl} from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import "maplibre-gl/dist/maplibre-gl.css";
+
+setWorkerUrl(workerUrl);
+```
+
+The worker URL above is for Vite. Other bundlers must follow the MapLibre 6 worker setup guide.
+
+The vector API accepts the same `AtlasMapHandle` as the raster adapter, with `center`, `zoom`, `markers`, `shapes`, `onClick` and `onViewChange`. Only the vector adapter requires WebGL2. Tile styles are independent of Atlas; OpenFreeMap is a keyless default, not owned infrastructure.
+
+### Reuse
+
+Both adapters expose imperative controls through `AtlasMapHandle`. Geocoding, coordinates, geometry and application data belong in `@atlas/core`; Atlas does not manage application accounts or private locations.
+
+### Camera behavior
+
+The `center` and `zoom` props specify the **initial map view**. Use `AtlasMapHandle.setView`, `flyTo`, or `fitTo` for subsequent camera changes. Atlas does not silently pan every time a parent component rerenders.
+
+Marker and shape props accept read-only arrays. Replace or create data with stable IDs; Atlas reconciles individual marker elements and preserves the rest.
+
+The `@atlas/react` package is currently developed as a monorepo workspace and **has not been published to npm**. Before public publishing, choose and verify an npm scope you control.
+
+### Startup and device performance
+
+The vector adapter is optional. In a Vite application, load the MapLibre entry point with `React.lazy` (Atlas Lab uses `apps/playground/src/VectorMapLoader.tsx`) so Leaflet-only pages never download WebGL code. The Vite worker URL must be registered **inside** the loaded module before the renderer is created.
+
+`AtlasVectorMap` accepts `renderQuality="balanced" | "high"`. Balanced (the default) caps the canvas device-pixel ratio to **1.5** on very dense screens; High preserves the device's full resolution. Neither changes the geographic data or tile style. The renderer also disables unused world-copy rendering and unnecessary tile cross-fade.
+
+The optional `onPerformance({phase,elapsedMs,styleUrl})` callback reports style-ready and first-idle timings. First idle includes the tile and glyph load for the current view. Use it in production preview comparisons rather than relying on fast synthetic unit tests. Atlas Lab exposes these values in Diagnostics.
+
+`applyVectorTheme` caches style-layer classifications and only writes paint properties whose requested colors changed. Cache is invalidated when the MapLibre style reloads.
+
+A large map dataset should use clustered GeoJSON/vector layers rather than thousands of individual DOM markers. The current React adapter optimizes ordinary marker lists but is not a point-cloud renderer.
+
+### Adaptive resolution scaling
+
+The vector adapter now supports `adaptiveResolution={true}` (default). During sustained **non-zooming pan** motion, Atlas temporarily caps canvas density at **1.0×**. Zoom animations (including pinch and wheel zoom) now retain a constant pixel ratio to avoid expensive WebGL framebuffer reallocation during rapid zoom reversals. After interaction settles, Atlas restores the selected `renderQuality` baseline (Balanced = up to 1.5×, High = device DPR).
+
+Touchscreen safety: Atlas tracks both touch and pointer contacts on the map. **It never changes WebGL canvas pixel density while any finger is touching the map**, even after MapLibre emits `moveend` or `zoomend` during a stationary pinch. Releasing one of two fingers does not end the gesture. A pending resolution change is applied only after the last finger is released and the restore debounce expires. Thus touch panning retains the selected static Balanced or High resolution; adaptive downscaling is reserved for sustained non-touch movement. This avoids reallocating the GPU framebuffer under an active multi-touch gesture.
+
+If a resize interrupts a mouse drag and it misses `moveend`, Atlas also observes pointer-release so a lower-resolution framebuffer cannot remain stuck.
+
+There is a 140 ms panning threshold to avoid expensive canvas reallocations for tiny transitions and a 420 ms restoration delay to avoid flicker between closely spaced gestures. MapLibre's `setPixelRatio` calls `resize`, which also emits camera events, so Atlas guards against re-entrant event loops. It uses no per-frame React state or `requestAnimationFrame` loop.
+
+Set `adaptiveResolution={false}` to preserve constant pixel density. Optional `onResolutionChange={({phase,pixelRatio})=>...}` exposes the actual chosen canvas ratio for debugging. This changes only the GPU framebuffer resolution; basemap detail, label sources, zoom, and exported data are unchanged.

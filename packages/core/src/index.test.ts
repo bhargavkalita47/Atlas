@@ -11,6 +11,11 @@ describe("Atlas geographic core", () => {
     expect(parseCoordinatePair("26.18,91.77")).toEqual({lat:26.18,lng:91.77});
     expect(parseCoordinatePair("abc,12")).toBeNull();
     expect(parseCoordinatePair("99,12")).toBeNull();
+    expect(parseCoordinatePair("26.18,")).toBeNull();
+    expect(parseCoordinatePair(",91.77")).toBeNull();
+    expect(parseCoordinatePair(" , ")).toBeNull();
+    expect(parseCoordinatePair("0x1,0")).toBeNull();
+    expect(parseCoordinatePair("0,0")).toEqual({lat:0,lng:0});
   });
   it("measures spherical distance", () => {
     expect(haversineKm({lat:0,lng:0},{lat:1,lng:0})).toBeCloseTo(111.195,1);

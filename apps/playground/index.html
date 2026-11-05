@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111b2b"/>
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  <!-- Only the current default style JSON is preloaded, never geographic tiles. -->
+  <link rel="preload" as="fetch" href="https://tiles.openfreemap.org/styles/positron" crossorigin="anonymous" fetchpriority="high" />
   <meta name="description" content="Atlas Lab — an interactive testing ground for the Atlas open mapping toolkit."/>
   <title>Atlas Lab — Mapping playground</title>
 </head>
