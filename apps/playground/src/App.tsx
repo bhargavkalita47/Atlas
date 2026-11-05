@@ -11,9 +11,10 @@ import {
   parseCoordinatePair,pathLengthKm,validPoint,toAtlasGeoJSON,parseAtlasGeoJSON,type LatLng,
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
-import {AtlasMap,MarkerLayer,ShapeLayer,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
+import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
+const AtlasRasterMap=lazy(()=>import("./RasterMapLoader"));
 
 const GUWAHATI:LatLng={lat:26.1716,lng:91.7606};
 const osmAttribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';
@@ -489,20 +490,31 @@ export default function App(){
               }}
             />
             </Suspense>
-          :<AtlasMap
-            ref={map}
-            center={view?.center??GUWAHATI}
-            zoom={view?.zoom??13}
-            tile={tile}
-            tileFilter={tileFilter}
-            className="lab-map"
-            onClick={handleMapClick}
-            onViewChange={setView}
-            onReady={()=>log("Map ready")}
-          >
-            {showMarkers&&<MarkerLayer markers={visibleMarkers} selectedId={selected} onSelect={id=>{setSelected(id);log("Selected pin "+id);}} onDrag={(id,point)=>{setMarkers(s=>s.map(m=>m.id===id?{...m,point}:m));log("Pin moved to "+coordinateText(point));}}/>}
-            {showShapes&&<ShapeLayer shapes={visibleShapes}/>} 
-          </AtlasMap>}
+          :<Suspense fallback={<div className="vector-loading-state" role="status">
+              <span className="spinner"/>
+              <strong>Starting Atlas raster map</strong>
+              <small>Loading the lightweight map renderer…</small>
+            </div>}>
+            <AtlasRasterMap
+              ref={map}
+              center={view?.center??GUWAHATI}
+              zoom={view?.zoom??13}
+              tile={tile}
+              tileFilter={tileFilter}
+              className="lab-map"
+              markers={visibleMarkers}
+              shapes={visibleShapes}
+              selectedId={selected}
+              onClick={handleMapClick}
+              onViewChange={setView}
+              onReady={()=>log("Map ready")}
+              onSelect={id=>{setSelected(id);log("Selected pin "+id);}}
+              onDrag={(id,point)=>{
+                setMarkers(s=>s.map(m=>m.id===id?{...m,point}:m));
+                log("Pin moved to "+coordinateText(point));
+              }}
+            />
+          </Suspense>}
 
           <div className="map-search-wrap">
             <form className="map-search" onSubmit={runSearch}>
