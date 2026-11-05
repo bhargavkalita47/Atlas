@@ -11,7 +11,8 @@ import {
   parseCoordinatePair,pathLengthKm,validPoint,type LatLng,
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
-import {AtlasMap,AtlasVectorMap,MarkerLayer,ShapeLayer,DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
+import {AtlasMap,MarkerLayer,ShapeLayer,type AtlasMapHandle,type TileSource,type ViewState} from "@atlas/react";
+import {AtlasVectorMap,DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,type VectorTheme} from "@atlas/react/vector";
 
 const GUWAHATI:LatLng={lat:26.1716,lng:91.7606};
 const osmAttribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';

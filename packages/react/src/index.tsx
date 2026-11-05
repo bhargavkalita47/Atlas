@@ -149,6 +149,3 @@ export function ShapeLayer({shapes}:{shapes:Shape[]}){
   },[map,shapes]);
   return null;
 }
-
-export { AtlasVectorMap, DEFAULT_VECTOR_THEME, KEYLESS_VECTOR_STYLES, applyVectorTheme } from "./VectorMap";
-export type { VectorTheme, AtlasVectorMapProps } from "./VectorMap";

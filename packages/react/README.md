@@ -1,19 +1,33 @@
-# @atlas/react
+# Atlas React adapters
 
-React adapters for Leaflet raster maps and MapLibre vector maps.
+Two entry points keep Leaflet-only applications from importing the GPU-based MapLibre implementation.
 
-Import `leaflet/dist/leaflet.css` in your host application. Import `AtlasMap`, `MarkerLayer`, `ShapeLayer` and `AtlasMapHandle` from `@atlas/react`.
+## Lightweight Leaflet adapter
 
-Use `AtlasVectorMap` with `DEFAULT_VECTOR_THEME`, `KEYLESS_VECTOR_STYLES` and `VectorTheme` for a basic editable vector layer palette. Import `maplibre-gl/dist/maplibre-gl.css` in the host application. The vector renderer uses keyless OSM-derived tiles from OpenFreeMap by default. The Leaflet raster adapter still cannot edit imagery baked into raster tiles.
-
-## MapLibre v6 worker setup (required in Vite consumers)
-
-MapLibre 6 uses a separately bundled browser Web Worker. The consuming Vite application must configure its URL **before** rendering `AtlasVectorMap`:
-
-```ts
-import { setWorkerUrl } from "maplibre-gl";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-setWorkerUrl(maplibreWorkerUrl);
+```tsx
+import {AtlasMap,MarkerLayer,ShapeLayer} from "@atlas/react";
+import "leaflet/dist/leaflet.css";
 ```
 
-This worker is part of MapLibre, not Cloudflare Workers and not an API-key service. The `?worker&url` import is important: Vite bundles the worker and its module dependencies and serves the asset from the application's own origin. For other bundlers, consult MapLibre's worker installation instructions; Atlas intentionally keeps the SDK bundler-independent.
+Leaflet uses raster tiles. Raster tiles cannot be individually restyled into custom roads or buildings.
+
+## Editable MapLibre vector adapter
+
+Install `maplibre-gl` alongside `@atlas/react` when using the optional vector adapter.
+
+```tsx
+import {AtlasVectorMap,DEFAULT_VECTOR_THEME} from "@atlas/react/vector";
+import {setWorkerUrl} from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import "maplibre-gl/dist/maplibre-gl.css";
+
+setWorkerUrl(workerUrl);
+```
+
+The worker URL above is for Vite. Other bundlers must follow the MapLibre 6 worker setup guide.
+
+The vector API accepts the same `AtlasMapHandle` as the raster adapter, with `center`, `zoom`, `markers`, `shapes`, `onClick` and `onViewChange`. Only the vector adapter requires WebGL2. Tile styles are independent of Atlas; OpenFreeMap is a keyless default, not owned infrastructure.
+
+### Reuse
+
+Both adapters expose imperative controls through `AtlasMapHandle`. Geocoding, coordinates, geometry and application data belong in `@atlas/core`; Atlas does not manage application accounts or private locations.

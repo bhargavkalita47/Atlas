@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./vector": {
+      "types": "./dist/vector.d.ts",
+      "import": "./dist/vector.js"
     }
   },
   "files": [
@@ -18,18 +22,25 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.tsx --format esm,cjs --dts --clean",
+    "build": "tsup src/index.tsx --format esm,cjs --dts --clean && tsup src/vector.ts --format esm --dts",
     "test": "vitest run"
   },
   "dependencies": {
     "@atlas/core": "0.1.0",
-    "leaflet": "^1.9.4",
-    "maplibre-gl": "^6.3.0"
+    "leaflet": "^1.9.4"
   },
   "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "maplibre-gl": "^6.3.0"
   },
   "devDependencies": {
-    "vitest": "^3.2.4"
-  }
+    "vitest": "^3.2.4",
+    "maplibre-gl": "^6.3.0"
+  },
+  "peerDependenciesMeta": {
+    "maplibre-gl": {
+      "optional": true
+    }
+  },
+  "sideEffects": false
 }
