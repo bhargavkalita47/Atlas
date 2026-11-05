@@ -51,7 +51,7 @@ test("vector map initializes a worker, renders pins, and applies a new style",as
   const startResources=await page.evaluate(()=>
     performance.getEntriesByType("resource").map(resource=>resource.name)
   );
-  expect(startResources.some(url=>/RasterMapLoader-[^/]+\\.(js|css)/.test(url))).toBe(false);
+  expect(startResources.some(url=>/RasterMapLoader-[^/]+\.(js|css)/.test(url))).toBe(false);
 
   await page.getByRole("button",{name:"Diagnostics"}).click();
   await expect(page.getByText("Vector map ready")).toBeVisible();
