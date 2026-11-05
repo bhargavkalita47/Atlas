@@ -100,10 +100,10 @@ describe("Atlas adaptive WebGL resolution",()=>{
     fake.fire("moveend");
     ctrl.update({quality:"balanced",enabled:true});
     fake.fire("movestart");
-    vi.advanceTimersByTime(70);
+    vi.advanceTimersByTime(140);
     expect(fake.ratio).toBe(1);
     fake.fire("moveend");
-    vi.advanceTimersByTime(180);
+    vi.advanceTimersByTime(420);
     expect(fake.ratio).toBe(1.5);
     ctrl.dispose();
   });
