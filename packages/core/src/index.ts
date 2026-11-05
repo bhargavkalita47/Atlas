@@ -25,15 +25,21 @@ export function haversineKm(a: LatLng, b: LatLng): number {
   return 6371.0088 * 2 * Math.atan2(Math.sqrt(v), Math.sqrt(Math.max(0, 1 - v)));
 }
 export function pathLengthKm(points: LatLng[]): number {
-  return points.slice(1).reduce((sum, point, index) => sum + haversineKm(points[index]!, point), 0);
+  let total=0;
+  for(let i=1;i<points.length;i++)total+=haversineKm(points[i-1]!,points[i]!);
+  return total;
 }
 export function formatDistance(km: number): string {
   return km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(km < 10 ? 2 : 1) + " km";
 }
 export function parseCoordinatePair(value: string): LatLng | null {
-  const pieces = value.split(",").map(Number);
-  if (pieces.length !== 2) return null;
-  const p = {lat: pieces[0], lng: pieces[1]};
+  const raw = value.split(",");
+  if (raw.length !== 2) return null;
+  // Number("") and Number(" ") both yield zero; a partial pair must never
+  // silently send a user to 0,0 or to an unintended location.
+  const decimal = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$/;
+  if (!raw.every(part => decimal.test(part.trim()))) return null;
+  const p = { lat: Number(raw[0]), lng: Number(raw[1]) };
   return validPoint(p) ? p : null;
 }
 export function inBounds(point: LatLng, bounds: MapBounds): boolean {
@@ -72,12 +78,19 @@ function fromPhoton(feature: PhotonFeature, index: number): Place | null {
     name: parts.join(", "), point, city, locality, country:first(p.country)
   };
 }
-export interface PhotonOptions { baseUrl?: string; nominatimUrl?: string; fetcher?: typeof fetch; minGapMs?: number }
+export interface PhotonOptions {
+  baseUrl?: string;
+  nominatimUrl?: string;
+  fetcher?: typeof fetch;
+  minGapMs?: number;
+  timeoutMs?: number;
+}
 export function createPhotonGeocoder(options: PhotonOptions = {}): Geocoder {
   const base = (options.baseUrl ?? "https://photon.komoot.io").replace(/\/$/, "");
   const nominatim = (options.nominatimUrl ?? "https://nominatim.openstreetmap.org").replace(/\/$/, "");
   const request = options.fetcher ?? fetch;
-  const waitMs = options.minGapMs ?? 1100;
+  const waitMs = Math.max(0, options.minGapMs ?? 1100);
+  const timeoutMs = Math.max(100, options.timeoutMs ?? 8000);
   const cache = new Map<string, Place[]>();
   let queue: Promise<void> = Promise.resolve();
   let last = 0;
@@ -96,7 +109,7 @@ export function createPhotonGeocoder(options: PhotonOptions = {}): Geocoder {
   };
   const json = async (url: string): Promise<unknown> => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await request(url, {
         signal: controller.signal,
@@ -160,3 +173,4 @@ export function createPhotonGeocoder(options: PhotonOptions = {}): Geocoder {
     }
   };
 }
+\nexport {toAtlasGeoJSON,parseAtlasGeoJSON} from "./geojson";\n
