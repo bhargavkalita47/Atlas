@@ -380,7 +380,7 @@ export default function App(){
               <section className="pane-section"><div className="section-label">RASTER DISPLAY FILTER</div>
                 <div className="filter-options">{[
                   ["none","Original"],["saturate(1.45) contrast(1.08)","Vivid"],["grayscale(1)","Monochrome"],["sepia(.35) saturate(.8)","Warm"]
-                ].map(([value,name])=><button className={tileFilter===value?"selected":""} key={value} onClick={()=>setTileFilter(value)}>{name}</button>)}</div>
+                ].map(([value,name])=><button className={tileFilter===value?"selected":""} key={value} onClick={()=>setTileFilter(value ?? "none")}>{name}</button>)}</div>
                 <div className="muted-tip">These are image filters. They do not separately restyle roads, water or buildings. Vector style editing is a future module.</div>
               </section>
             </>}
