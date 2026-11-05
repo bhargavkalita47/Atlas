@@ -172,6 +172,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   const map=useRef<MapLibreMap|null>(null);
   const markerElements=useRef(new Map<string,ManagedMarker>());
   const currentStyleUrl=useRef(styleUrl);
+  const restartStyleWatchdog=useRef<(()=>void)|null>(null);
+  const reportFatalStyleError=useRef<((message:string)=>void)|null>(null);
   const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError});
   latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError};
   const shapesRef=useRef(shapes);
@@ -193,6 +195,7 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       latest.current.onError?.(message);
     };
     const armWatchdog=()=>{
+      lastError="";
       if(watchdog)clearTimeout(watchdog);
       watchdog=setTimeout(()=>{
         if(disposed||failed)return;
@@ -213,6 +216,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       return;
     }
     map.current=instance;
+    restartStyleWatchdog.current=armWatchdog;
+    reportFatalStyleError.current=fail;
     const emit=()=>latest.current.onViewChange?.(viewOf(instance));
     const installOverlays=()=>{
       if(disposed||failed)return;
@@ -254,6 +259,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     return()=>{
       disposed=true;
       if(watchdog)clearTimeout(watchdog);
+      restartStyleWatchdog.current=null;
+      reportFatalStyleError.current=null;
       observer?.disconnect();
       if(!observer)window.removeEventListener("resize",resize);
       for(const entry of markerElements.current.values())entry.marker.remove();
@@ -270,7 +277,12 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     currentStyleUrl.current=styleUrl;
     const instance=map.current;
     if(!instance)return;
-    instance.setStyle(styleUrl);
+    try{
+      restartStyleWatchdog.current?.();
+      instance.setStyle(styleUrl);
+    }catch(error){
+      reportFatalStyleError.current?.(error instanceof Error?error.message:"Unable to load map style.");
+    }
   },[styleUrl]);
 
   // The style.load handler re-applies the most recent theme after a style

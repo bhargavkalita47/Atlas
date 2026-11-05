@@ -467,8 +467,8 @@ export default function App(){
             />
           :<AtlasMap
             ref={map}
-            center={GUWAHATI}
-            zoom={13}
+            center={view?.center??GUWAHATI}
+            zoom={view?.zoom??13}
             tile={tile}
             tileFilter={tileFilter}
             className="lab-map"
