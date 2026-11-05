@@ -57,4 +57,4 @@ Atlas contains mapping capabilities, never CivicWatch or Shikshak business logic
 
 Atlas source is MIT licensed. Leaflet is BSD-2-Clause; MapLibre is BSD-3-Clause. OpenStreetMap data is available under ODbL and requires attribution. Photon and Nominatim are separate services with their own licenses and hosting policies. The playground's default editable vector map uses the third-party OpenFreeMap public instance, which requires no registration or API key. It remains a hosted service, not Atlas-owned infrastructure; self-hosting is optional. The public OSM raster service is not a production SLA. Do not proxy or bulk-fetch its tiles.
 
-See `LICENSE`, `docs/ARCHITECTURE.md` and `docs/STABILIZATION.md` for details.
+See `LICENSE`, `docs/ARCHITECTURE.md`, `docs/STABILIZATION.md`, and `docs/PERFORMANCE.md` for details.

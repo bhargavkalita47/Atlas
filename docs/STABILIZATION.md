@@ -50,3 +50,7 @@ Do not merge until both CI and manual deployment verification are satisfactory.
 - Atlas Lab diagnostics now show first style-ready and first-idle durations in milliseconds for real browsers.
 - Performance is still dependent on vector tile/glyph CDN latency and GPU/CPU capability. No server-side performance guarantee is implied.
 - Verify the built asset split in GitHub/Cloudflare build output; inspect Network requests on the deployed preview before comparing actual speed.
+
+- Raster adapter and Leaflet CSS are now also dynamically loaded when raster mode is chosen. Vector sessions do not fetch the Leaflet bundle.
+- Atlas Lab preconnects to the OpenFreeMap host before requesting its style and tiles.
+- Measured initial JS bundle reduction and remaining trade-offs are recorded in `docs/PERFORMANCE.md`.

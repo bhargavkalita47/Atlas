@@ -47,6 +47,12 @@ test("vector map initializes a worker, renders pins, and applies a new style",as
   await page.goto("/");
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+  // Loading the default vector view must not fetch the optional Leaflet chunk.
+  const startResources=await page.evaluate(()=>
+    performance.getEntriesByType("resource").map(resource=>resource.name)
+  );
+  expect(startResources.some(url=>/RasterMapLoader-[^/]+\\.(js|css)/.test(url))).toBe(false);
+
   await page.getByRole("button",{name:"Diagnostics"}).click();
   await expect(page.getByText("Vector map ready")).toBeVisible();
   await expect(page.getByText("MapLibre GL JS")).toBeVisible();
