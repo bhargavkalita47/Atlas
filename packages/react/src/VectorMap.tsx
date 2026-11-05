@@ -147,6 +147,22 @@ function installShapeLayers(map: MapLibreMap): void {
     paint:{"line-color":["get","color"],"line-width":3},
   });
 }
+type ManagedMarker = {
+  marker: MapLibreMarker;
+  element: HTMLButtonElement;
+  title: string;
+  color: string;
+  draggable: boolean;
+  point: LatLng;
+};
+
+/**
+ * MapLibre renderer. A map instance is created only on mount; style changes
+ * update it in place, so its camera, pins, and event subscriptions survive.
+ *
+ * Consumers using Vite must register MapLibre's v6 worker URL once in their
+ * application's entry point before mounting this component.
+ */
 export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(function AtlasVectorMap({
   center, zoom=13, styleUrl=KEYLESS_VECTOR_STYLES.liberty,
   theme,markers,shapes,selectedId,onSelect,onDrag,onClick,
@@ -154,7 +170,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
 },ref){
   const host=useRef<HTMLDivElement>(null);
   const map=useRef<MapLibreMap|null>(null);
-  const markerElements=useRef<MapLibreMarker[]>([]);
+  const markerElements=useRef(new Map<string,ManagedMarker>());
+  const currentStyleUrl=useRef(styleUrl);
   const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError});
   latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError};
   const shapesRef=useRef(shapes);
@@ -163,106 +180,203 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   themeRef.current=theme;
 
   useEffect(()=>{
-    if (!host.current) return;
-    let loaded=false;
-    let errors=0;
-    let instance: MapLibreMap;
-    try {
-      instance = new MapLibreMap({
+    if(!host.current)return;
+    let disposed=false;
+    let failed=false;
+    let ready=false;
+    let lastError="";
+    let watchdog:ReturnType<typeof setTimeout>|undefined;
+    const fail=(message:string)=>{
+      if(disposed||failed)return;
+      failed=true;
+      if(watchdog)clearTimeout(watchdog);
+      latest.current.onError?.(message);
+    };
+    const armWatchdog=()=>{
+      if(watchdog)clearTimeout(watchdog);
+      watchdog=setTimeout(()=>{
+        if(disposed||failed)return;
+        fail(lastError||"Vector style could not load within 20 seconds.");
+      },20_000);
+    };
+    let instance:MapLibreMap;
+    try{
+      instance=new MapLibreMap({
         container:host.current!,
         style:styleUrl,
         center:[center.lng,center.lat],
         zoom,
         maxZoom:19,
       });
-    } catch (error) {
-      latest.current.onError?.(error instanceof Error ? error.message : "WebGL map unavailable.");
+    }catch(error){
+      fail(error instanceof Error?error.message:"WebGL map initialization failed.");
       return;
     }
     map.current=instance;
     const emit=()=>latest.current.onViewChange?.(viewOf(instance));
+    const installOverlays=()=>{
+      if(disposed||failed)return;
+      try{
+        installShapeLayers(instance);
+        const source=instance.getSource(shapeSource) as GeoJSONSource|undefined;
+        source?.setData(asGeoJson(shapesRef.current));
+        applyVectorTheme(instance,themeRef.current);
+        if(watchdog)clearTimeout(watchdog);
+        if(!ready){
+          ready=true;
+          latest.current.onReady?.();
+        }
+        emit();
+      }catch(error){
+        lastError=error instanceof Error?error.message:"Unable to install vector overlays.";
+      }
+    };
     instance.on("moveend",emit);
     instance.on("zoomend",emit);
     instance.on("click",event=>latest.current.onClick?.({lat:event.lngLat.lat,lng:event.lngLat.lng}));
     instance.on("error",event=>{
-      if (loaded) return;
-      if (++errors >= 2) latest.current.onError?.(
-        event.error?.message || "Vector map couldn't load; use raster fallback."
-      );
+      const message=event.error?.message||"Vector resource failed to load.";
+      lastError=message;
+      // A single missing glyph or transient tile error must not destroy the
+      // map. Workers, WebGL, and unrecoverable style initialization do.
+      if(/worker.*(?:fail|load|url|module)|(?:fail|load).*worker|webgl|context lost/i.test(message)){
+        fail(message);
+      }
     });
-    instance.on("load",()=>{
-      loaded=true;
-      installShapeLayers(instance);
-      const source=instance.getSource(shapeSource) as GeoJSONSource | undefined;
-      source?.setData(asGeoJson(shapesRef.current));
-      applyVectorTheme(instance,themeRef.current);
-      emit();
-      latest.current.onReady?.();
-    });
-    instance.on("style.load",()=>{
-      installShapeLayers(instance);
-      const source=instance.getSource(shapeSource) as GeoJSONSource | undefined;
-      source?.setData(asGeoJson(shapesRef.current));
-      applyVectorTheme(instance,themeRef.current);
-    });
-    const resize=new ResizeObserver(()=>instance.resize());
-    resize.observe(host.current);
+    // style.load is the correct boundary after every setStyle(): sources and
+    // layers owned by the app must be reattached to the fresh style.
+    instance.on("style.load",installOverlays);
+    armWatchdog();
+    const resize=()=>instance.resize();
+    const observer=typeof ResizeObserver!=="undefined"?new ResizeObserver(resize):null;
+    if(observer)observer.observe(host.current);
+    else window.addEventListener("resize",resize);
     return()=>{
-      resize.disconnect();
-      markerElements.current.forEach(m=>m.remove());
-      markerElements.current=[];
+      disposed=true;
+      if(watchdog)clearTimeout(watchdog);
+      observer?.disconnect();
+      if(!observer)window.removeEventListener("resize",resize);
+      for(const entry of markerElements.current.values())entry.marker.remove();
+      markerElements.current.clear();
       map.current=null;
       instance.remove();
     };
   },[]);
+
+  // Unlike the previous implementation, this does not immediately reload the
+  // same style after construction, nor does it destroy markers/camera state.
   useEffect(()=>{
-    if(map.current && map.current.getStyle()?.sprite !== undefined){
-      map.current.setStyle(styleUrl);
-    }
+    if(currentStyleUrl.current===styleUrl)return;
+    currentStyleUrl.current=styleUrl;
+    const instance=map.current;
+    if(!instance)return;
+    instance.setStyle(styleUrl);
   },[styleUrl]);
+
+  // The style.load handler re-applies the most recent theme after a style
+  // change, including changes requested while style data was still loading.
   useEffect(()=>{
-    if(map.current)applyVectorTheme(map.current,theme);
+    const instance=map.current;
+    if(instance&&instance.isStyleLoaded())applyVectorTheme(instance,theme);
   },[theme]);
+
   useEffect(()=>{
     const instance=map.current;
-    if(!instance || !instance.isStyleLoaded()) return;
-    const source=instance.getSource(shapeSource) as GeoJSONSource | undefined;
+    if(!instance||!instance.isStyleLoaded())return;
+    const source=instance.getSource(shapeSource) as GeoJSONSource|undefined;
     source?.setData(asGeoJson(shapes));
-  },[shapes,styleUrl]);
+  },[shapes]);
+
+  // Reconcile markers by stable id. Selecting a pin or dragging one must not
+  // recreate every marker node and its attached event listeners.
   useEffect(()=>{
     const instance=map.current;
-    if(!instance) return;
-    markerElements.current.forEach(m=>m.remove());
-    markerElements.current=[];
-    for(const marker of markers){
-      if(!validPoint(marker.point))continue;
-      const el=document.createElement("button");
-      el.type="button";
-      el.className="atlas-vector-pin"+(marker.id===selectedId?" selected":"");
-      el.style.setProperty("--pin-color",safeHex(marker.color));
-      el.setAttribute("aria-label",marker.title);
-      el.title=marker.title;
-      el.innerHTML='<span aria-hidden="true"></span>';
-      el.addEventListener("click",event=>{
+    if(!instance)return;
+    const wanted=new Set<string>();
+    for(const value of markers){
+      if(!validPoint(value.point)||!value.id)continue;
+      wanted.add(value.id);
+      const color=safeHex(value.color);
+      const draggable=!!value.draggable;
+      const existing=markerElements.current.get(value.id);
+      if(existing){
+        if(existing.point.lat!==value.point.lat||existing.point.lng!==value.point.lng){
+          existing.marker.setLngLat([value.point.lng,value.point.lat]);
+          existing.point=value.point;
+        }
+        if(existing.color!==color){
+          existing.element.style.setProperty("--pin-color",color);
+          existing.color=color;
+        }
+        if(existing.title!==value.title){
+          existing.title=value.title;
+          existing.element.setAttribute("aria-label",value.title);
+          existing.element.title=value.title;
+        }
+        if(existing.draggable!==draggable){
+          existing.marker.setDraggable(draggable);
+          existing.draggable=draggable;
+        }
+        continue;
+      }
+      const element=document.createElement("button");
+      element.type="button";
+      element.className="atlas-vector-pin";
+      element.style.setProperty("--pin-color",color);
+      element.setAttribute("aria-label",value.title);
+      element.title=value.title;
+      const inner=document.createElement("span");
+      inner.setAttribute("aria-hidden","true");
+      element.appendChild(inner);
+      const id=value.id;
+      element.addEventListener("click",event=>{
         event.stopPropagation();
-        latest.current.onSelect?.(marker.id);
+        latest.current.onSelect?.(id);
       });
-      const item=new MapLibreMarker({element:el,draggable:!!marker.draggable,anchor:"bottom"})
-        .setLngLat([marker.point.lng,marker.point.lat]).addTo(instance);
-      item.on("dragend",()=>{
-        const p=item.getLngLat();
-        latest.current.onDrag?.(marker.id,{lat:p.lat,lng:p.lng});
+      const instanceMarker=new MapLibreMarker({
+        element,draggable,anchor:"bottom",
+      }).setLngLat([value.point.lng,value.point.lat]).addTo(instance);
+      instanceMarker.on("dragend",()=>{
+        const p=instanceMarker.getLngLat();
+        latest.current.onDrag?.(id,{lat:p.lat,lng:p.lng});
       });
-      markerElements.current.push(item);
+      markerElements.current.set(id,{
+        marker:instanceMarker,element,title:value.title,color,draggable,point:value.point,
+      });
     }
-  },[markers,selectedId]);
+    for(const [id,item] of markerElements.current){
+      if(!wanted.has(id)){
+        item.marker.remove();
+        markerElements.current.delete(id);
+      }
+    }
+    for(const [id,item] of markerElements.current){
+      item.element.classList.toggle("selected",id===selectedId);
+    }
+  },[markers]);
+
+  useEffect(()=>{
+    for(const [id,item] of markerElements.current){
+      item.element.classList.toggle("selected",id===selectedId);
+    }
+  },[selectedId]);
+
   useImperativeHandle(ref,()=>({
-    flyTo(p,z){map.current?.flyTo({center:[p.lng,p.lat],zoom:z??map.current.getZoom(),duration:500});},
-    setView(p,z){map.current?.jumpTo({center:[p.lng,p.lat],zoom:z??map.current.getZoom()});},
+    flyTo(p,z){
+      if(validPoint(p))map.current?.flyTo({center:[p.lng,p.lat],zoom:z??map.current.getZoom(),duration:500});
+    },
+    setView(p,z){
+      if(validPoint(p))map.current?.jumpTo({center:[p.lng,p.lat],zoom:z??map.current.getZoom()});
+    },
     fitTo(points){
-      if(!points.length)return;
-      const lngs=points.map(p=>p.lng),lats=points.map(p=>p.lat);
-      map.current?.fitBounds([
+      const valid=points.filter(validPoint);
+      if(!valid.length||!map.current)return;
+      if(valid.length===1){
+        map.current.flyTo({center:[valid[0]!.lng,valid[0]!.lat],zoom:15,duration:500});
+        return;
+      }
+      const lngs=valid.map(p=>p.lng),lats=valid.map(p=>p.lat);
+      map.current.fitBounds([
         [Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]
       ],{padding:75,maxZoom:16});
     },
