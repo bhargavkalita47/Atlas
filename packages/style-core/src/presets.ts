@@ -4,6 +4,8 @@ import {
 } from "./index";
 import {applyMapDetailControls} from "./detailControls";
 import {getAtlasPresetDetailSettings,ATLAS_DETAIL_PROFILE_VERSION} from "./presetDetails";
+import {applyAdvancedStyleControls} from "./advancedStyle";
+import {getAtlasPresetAdvancedSettings,ATLAS_ADVANCED_PROFILE_VERSION} from "./presetAdvanced";
 
 /**
  * Curated, zero-key Atlas presets built exclusively on existing v2
@@ -275,6 +277,7 @@ export function createAtlasPresetDocument(
   }
   doc.metadata={
     preset:id,presetDetailVersion:ATLAS_DETAIL_PROFILE_VERSION,
+    presetAdvancedVersion:ATLAS_ADVANCED_PROFILE_VERSION,
     bindingMode:"suggested-review-required",
     note:"Features and exact layer matches depend on the provider's actual style."
   };
@@ -283,6 +286,7 @@ export function createAtlasPresetDocument(
   // Built-in preset documents are complete and portable by default.
   // Atlas Lab uses includeDetails:false, then applies the selected profile
   // and any manual sparse overrides once against its live provider base.
-  return options.includeDetails===false?doc:
-    applyMapDetailControls(doc,layers,getAtlasPresetDetailSettings(id),options.baseStyle);
+  if(options.includeDetails===false)return doc;
+  const details=applyMapDetailControls(doc,layers,getAtlasPresetDetailSettings(id),options.baseStyle);
+  return applyAdvancedStyleControls(details,layers,getAtlasPresetAdvancedSettings(id),options.baseStyle);
 }

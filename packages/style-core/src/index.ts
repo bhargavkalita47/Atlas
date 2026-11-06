@@ -315,3 +315,6 @@ export type {RoadTier,DetailFeature,DetailLevel,DetailDensity,MapDetailSettings,
 
 export {LABEL_ROLES,createAdvancedStyleSettings,availableProviderFonts,classifyLabelRole,validateAdvancedStyleSettings,applyAdvancedStyleControls} from "./advancedStyle";
 export type {LabelRole,RoadDash,RoadDesign,LabelDesign,ZoomRange,AdvancedStyleSettings} from "./advancedStyle";
+
+export {ATLAS_ADVANCED_PROFILE_VERSION,getAtlasPresetAdvancedSettings,createAdvancedOverrides,deriveAdvancedOverrides,mergeAdvancedOverrides} from "./presetAdvanced";
+export type {AdvancedPaletteOverrides,AdvancedOverrides} from "./presetAdvanced";

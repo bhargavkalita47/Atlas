@@ -3,6 +3,10 @@ import {
   type AtlasPresetDefinition,type AtlasPresetDocumentOptions
 } from "./presets";
 import type {AtlasStyleDocument,StyleGroup,StyleLayerDescriptor} from "./index";
+import {applyMapDetailControls} from "./detailControls";
+import {getAtlasPresetDetailSettings} from "./presetDetails";
+import {applyAdvancedStyleControls} from "./advancedStyle";
+import {getAtlasPresetAdvancedSettings} from "./presetAdvanced";
 
 /**
  * Atlas Palette Reskin Engine v1. Works only on CSS-free, opaque sRGB hex
@@ -149,7 +153,7 @@ export function reskinAtlasPreset(
   options:AtlasPresetDocumentOptions={}
 ):AtlasStyleDocument {
   const colors=validatePaletteSeeds(input);
-  const document=createAtlasPresetDocument(presetId,layers,options);
+  const document=createAtlasPresetDocument(presetId,layers,{...options,includeDetails:false});
   const roles=deriveSemanticPalette(presetId,colors);
   for(const [role,color] of Object.entries(roles))
     document.groups[role as StyleGroup]={...document.groups[role as StyleGroup],color};
@@ -157,5 +161,7 @@ export function reskinAtlasPreset(
   document.name=getAtlasPreset(presetId).name+" · Custom palette";
   document.metadata={...document.metadata,preset:presetId,customPalette:colors,
     paletteEngineVersion:1,paletteReskin:true};
-  return document;
+  if(options.includeDetails===false)return document;
+  const styled=applyMapDetailControls(document,layers,getAtlasPresetDetailSettings(presetId),options.baseStyle);
+  return applyAdvancedStyleControls(styled,layers,getAtlasPresetAdvancedSettings(presetId,roles),options.baseStyle);
 }
