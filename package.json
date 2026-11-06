@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "npm run build --workspace=@atlas/core && npm run build --workspace=@atlas/style-core && npm run build --workspace=@atlas/react && npm run dev --workspace=atlas-playground",
     "build": "npm run build --workspace=@atlas/core && npm run build --workspace=@atlas/style-core && npm run build --workspace=@atlas/react && npm run build --workspace=atlas-playground",
-    "test": "npm run test --workspace=@atlas/core && npm run test --workspace=@atlas/style-core && npm run test --workspace=@atlas/react",
+    "test": "npm run test --workspace=@atlas/core && npm run test --workspace=@atlas/style-core && npm run test --workspace=@atlas/react && npm run test --workspace=atlas-playground",
     "check": "npm run build && npm run test",
     "deploy": "npm run build && npx wrangler deploy",
     "test:e2e": "playwright test"

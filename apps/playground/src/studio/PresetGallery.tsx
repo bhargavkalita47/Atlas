@@ -44,7 +44,7 @@ export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Prop
       <div className="section-label">ATLAS PRESET LIBRARY</div>
       <span className="atlas-preset-total">{ATLAS_STYLE_PRESETS.length} themes</span>
     </div>
-    <p className="atlas-preset-intro">Browse map aesthetics by category. Apply a 4–6-colour palette below to automatically reskin any preset without replacing its underlying style rules.</p>
+    <p className="atlas-preset-intro">Browse presets on the current vector base without reloading it. Apply a 4–6-colour palette below to reskin the map. For provider-specific layout differences, change the base map manually.</p>
     <div className="atlas-preset-search">
       <Search size={15}/>
       <input aria-label="Search map presets" placeholder="Search themes…" value={search}
@@ -71,7 +71,7 @@ export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Prop
         <span className="atlas-preset-card-copy">
           <strong>{preset.name}</strong>
           <small>{preset.summary}</small>
-          <span className="atlas-preset-card-meta">{FAMILY_NAMES[preset.family]} · {preset.baseStyle} base</span>
+          <span className="atlas-preset-card-meta">{FAMILY_NAMES[preset.family]} · {preset.baseStyle} recipe</span>
         </span>
         {basePresetId===preset.id&&<span className="atlas-preset-selected" aria-hidden="true"><Check size={13}/></span>}
       </button>)}

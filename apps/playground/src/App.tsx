@@ -20,6 +20,7 @@ import {
 import {PresetGallery} from "./studio/PresetGallery";
 import {PaletteEditor} from "./studio/PaletteEditor";
 import {LayerEditor} from "./studio/LayerEditor";
+import {StudioPresetCache} from "./studio/studioCache";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
 const AtlasRasterMap=lazy(()=>import("./RasterMapLoader"));
@@ -131,6 +132,8 @@ export default function App(){
   const [customPalette,setCustomPalette]=useState<string[]|null>(null);
   const [studioLayers,setStudioLayers]=useState<StyleLayerDescriptor[]>([]);
   const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
+  const studioCache=useRef(new StudioPresetCache());
+  const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
   const [customUrl,setCustomUrl]=useState("");
   const [customTiles,setCustomTiles]=useState<TileSource|null>(null);
@@ -159,6 +162,13 @@ export default function App(){
   },[]);
   const alert=(text:string)=>{setNotification(text);log(text);};
   useEffect(()=>{localStorage.setItem("atlas.lab.markers",JSON.stringify(markers));},[markers]);
+  // Atlas Lab only: warm the four small style documents at low priority.
+  // MapLibre still owns vector tile/glyph/sprite requests and their browser
+  // cache policy; preloading cannot cache the world's geographic data.
+  useEffect(()=>{
+    for(const url of Object.values(KEYLESS_VECTOR_STYLES))
+      preloadVectorStyle(url,"low");
+  },[]);
   const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
   const colorsForDocument=(document:AtlasStyleDocument):VectorTheme=>{
     const fallback=getAtlasPresetCoreColors(basePresetId);
@@ -169,26 +179,23 @@ export default function App(){
   };
   const choosePreset=(id:string)=>{
     const preset=getAtlasPreset(id);
-    const document=customPalette
-      ?reskinAtlasPreset(id,customPalette,vectorStyle===preset.baseStyle?studioLayers:[])
-      :createAtlasPresetDocument(id,vectorStyle===preset.baseStyle?studioLayers:[]);
+    // Fast Studio mode: retain the current loaded vector source/layers.
+    // Choosing a preset changes only its prepared paint/layout overrides.
+    // The separate vector base selector remains available when required.
+    const document=studioCache.current.get(id,customPalette);
     setActivePresetId(id);
     setBasePresetId(id);
     setStudioWarnings([]);
     setVectorTheme(colorsForDocument(document));
     setStudioDocument(document);
-    if(vectorStyle!==preset.baseStyle)setStudioLayers([]);
-    setVectorStyle(preset.baseStyle);
-    log("Atlas preset: "+preset.name+(customPalette?" · custom palette":""));
+    log("Atlas preset: "+preset.name+(customPalette?" · custom palette":"")+
+      " (instant Studio preview)");
   };
   const applyCustomPalette=(colors:string[]|null)=>{
-    const preset=getAtlasPreset(basePresetId);
-    const base=colors
-      ?reskinAtlasPreset(basePresetId,colors,vectorStyle===preset.baseStyle?studioLayers:[])
-      :createAtlasPresetDocument(basePresetId,vectorStyle===preset.baseStyle?studioLayers:[]);
-    // Direct overrides from the layer inspector remain editable when the
-    // palette changes; restoring the preset clears those overrides.
-    if(colors && studioDocument.baseStyle===preset.baseStyle){
+    const base=studioCache.current.get(basePresetId,colors);
+    // Custom edits take precedence over generated group styles while the
+    // base map remains the same, without remounting or fetching tiles.
+    if(colors && studioDocument.baseStyle===vectorStyle){
       base.layers={...base.layers,...studioDocument.layers};
     }
     setCustomPalette(colors);
@@ -196,10 +203,8 @@ export default function App(){
     setStudioWarnings([]);
     setVectorTheme(colorsForDocument(base));
     setStudioDocument(base);
-    if(vectorStyle!==preset.baseStyle)setStudioLayers([]);
-    setVectorStyle(preset.baseStyle);
-    log(colors?"Applied "+colors.length+"-colour palette to "+preset.name:
-      "Restored "+preset.name+" original palette");
+    log(colors?"Applied "+colors.length+"-colour palette to "+getAtlasPreset(basePresetId).name:
+      "Restored "+getAtlasPreset(basePresetId).name+" original palette");
   };
   const editStudioDocument=(document:AtlasStyleDocument)=>{
     setActivePresetId(null);
@@ -458,6 +463,12 @@ export default function App(){
                   </button>)}</div>
                   <div className="muted-tip">Hosted by OpenFreeMap, an open-source OSM-derived tile system. No account or key. Self-hosting can be configured later.</div>
                 </section>
+                <div className="muted-tip" role="status" aria-label="Atlas preset cache status">
+                  {preparedPresets>0
+                    ?preparedPresets+" presets prepared in memory for "+vectorStyle+" · selecting a theme will not reload tiles."
+                    :"Preparing Studio preset cache from the loaded vector map…"}
+                  {" "}Changing the vector base above still reloads its distinct provider resources.
+                </div>
                 <PresetGallery activePresetId={activePresetId} basePresetId={basePresetId}
                   palette={customPalette} onApply={choosePreset}/>
                 <PaletteEditor presetId={basePresetId} colors={customPalette}
@@ -572,14 +583,14 @@ export default function App(){
               theme={vectorTheme}
               styleDocument={studioDocument}
               onStyleLayers={layers=>{
+                // The inventory is provider-specific. Prepare all 81 Atlas
+                // recipes once; subsequent selections use independent copies.
+                studioCache.current.prepare(vectorStyle,layers);
+                setPreparedPresets(studioCache.current.size);
                 setStudioLayers(layers);
                 setStudioDocument(old=>{
-                  // A preset's rules depend on the actual layers in the newly
-                  // loaded provider style, never stale IDs from another style.
-                  if(activePresetId&&getAtlasPreset(activePresetId).baseStyle===vectorStyle){
-                    return customPalette
-                      ?reskinAtlasPreset(activePresetId,customPalette,layers)
-                      :createAtlasPresetDocument(activePresetId,layers);
+                  if(activePresetId){
+                    return studioCache.current.get(activePresetId,customPalette);
                   }
                   return {...old,baseStyle:vectorStyle,bindings:bindingsFor(layers),
                     layers:old.baseStyle===vectorStyle?old.layers:{}};

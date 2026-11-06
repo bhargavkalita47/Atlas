@@ -318,3 +318,31 @@ test("preset catalog is searchable and paste accepts 4-6 colours",async({page})=
   await expect(page.getByRole("group",{name:"Custom palette swatches"}).locator('input[type="color"]')).toHaveCount(6);
   await expect(page.getByRole("button",{name:/Add colour/})).toBeDisabled();
 });
+
+test("warm Atlas Studio presets switch across base recipes without style reload",async({page})=>{
+  let styleRequests=0;
+  await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
+    styleRequests++;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},body:JSON.stringify(fixtureStyle)});
+  });
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("81 presets prepared in memory");
+  const canvas=await page.locator(".maplibregl-canvas").elementHandle();
+  const before=styleRequests;
+  // Originally Blueprint was mapped to the Dark provider style, Terra to
+  // Liberty. Studio must keep Positron loaded and use incremental paint.
+  await page.getByRole("button",{name:"Apply Blueprint preset"}).click();
+  await expect(page.getByRole("button",{name:"Apply Blueprint preset"})).toHaveAttribute("aria-pressed","true");
+  await page.getByRole("button",{name:"Apply Terra preset"}).click();
+  await expect(page.getByRole("button",{name:"Apply Terra preset"})).toHaveAttribute("aria-pressed","true");
+  await page.getByRole("button",{name:"Use Neon palette"}).click();
+  await page.locator('input[aria-label="Palette colour 1"]').fill("#112233");
+  await page.getByRole("button",{name:"Apply Minimal Light preset"}).click();
+  await expect(page.locator('input[aria-label="Palette colour 1"]')).toHaveValue("#112233");
+  expect(styleRequests).toBe(before);
+  expect(await page.locator(".maplibregl-canvas").elementHandle()).toEqual(canvas);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});
