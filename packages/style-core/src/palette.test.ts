@@ -19,7 +19,8 @@ describe("palette reskin engine",()=>{
     expect(PALETTE_MAX_COLORS).toBe(6);
     expect(normalizeHexColor("#fab")).toBe("#FFAABB");
     expect(parseHexPalette(" #fab, #a1b2c3\n#444; #ffffff ")).toEqual(["#FFAABB","#A1B2C3","#444444","#FFFFFF"]);
-    for(let n=4;n<=6;n++)expect(validatePaletteSeeds(input.slice(0,n===6?5:n)).length).toBeGreaterThanOrEqual(4);
+    const six=[...input,"#334466"];
+    for(let n=4;n<=6;n++)expect(validatePaletteSeeds(six.slice(0,n))).toHaveLength(n);
     expect(()=>validatePaletteSeeds(input.slice(0,3))).toThrow("4 to 6");
     expect(()=>validatePaletteSeeds([...input,"#FFFFFF","#000000"])).toThrow("4 to 6");
     expect(()=>parseHexPalette("red #FFFFFF #222222 #abcdef")).toThrow();

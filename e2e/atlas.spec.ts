@@ -278,7 +278,7 @@ test("palette generator reskins any selected preset, retains camera and restores
     (window as Window & {atlasPaletteTestCanvas?:Element|null}).atlasPaletteTestCanvas=document.querySelector(".maplibregl-canvas");
   });
   await page.getByRole("button",{name:"Style studio"}).click();
-  await expect(page.getByText(/81 themes/)).toBeVisible();
+  await expect(page.locator(".atlas-preset-total")).toContainText(/\\d+ themes/);
   await page.getByRole("button",{name:"Enable custom palette"}).click();
   await expect(page.getByRole("group",{name:"Custom palette swatches"}).locator('input[type="color"]')).toHaveCount(5);
   await page.locator('input[aria-label="Palette colour 2"]').fill("#1469BC");

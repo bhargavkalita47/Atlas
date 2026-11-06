@@ -15,3 +15,13 @@ features. Provider classification is a suggestion, not a guarantee. Never use
 unreviewed heuristic bindings as proof of provider semantics.
 
 See `docs/STYLE_STUDIO_RFC.md` for the phased plan.
+
+## Preset library and palette reskinning
+
+- `ATLAS_STYLE_PRESETS` / `getAtlasPreset`: curated theme catalog.
+- `createAtlasPresetDocument`: create a preset with reviewed exact style-layer bindings.
+- `deriveSemanticPalette(presetId, colors)`: deterministic assignment of 4–6 swatches to ten map semantic roles.
+- `reskinAtlasPreset(presetId, colors, layers)`: preserve a preset's structural rules while recolouring it.
+- `parseHexPalette`, `normalizeHexColor`, `contrastRatio`: palette input and contrast utilities.
+
+See `docs/PRESET_LIBRARY.md` for the UI workflow and limitations.
