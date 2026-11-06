@@ -1,6 +1,6 @@
 import {getAtlasPreset,type AtlasPresetDefinition} from "./presets";
 import {getAtlasPresetDetailSettings} from "./presetDetails";
-import {ensureLightRoadContrast,isLightMapSurface} from "./roadLegibility";
+import {ensureLightRoadContrast,isLightMapSurface,visibleRoadContrast} from "./roadLegibility";
 import {createAdvancedStyleSettings,LABEL_ROLES,
   type AdvancedStyleSettings,type RoadDesign,type LabelDesign,type ZoomRange,type LabelRole
 } from "./advancedStyle";
@@ -263,6 +263,33 @@ export function getAtlasPresetAdvancedSettings(id:string,paletteOverride:Advance
   result.features.terrain.min=preset.family==="nature"?7:9;
   const specific=special[id];
   if(specific)patch(result,specific);
+  if(id==="tokyo-neon"){
+    // Tokyo Neon originally tinted roads toward the near-black land:
+    // residential and service streets then almost disappeared, especially
+    // when previewed on Studio's persistent (often Positron) base.
+    // Restore a deliberate luminous road hierarchy while preserving the
+    // selected / custom palette and the original vector tile source.
+    const targets:Record<RoadTier,{contrast:number;width:number;zoom:number;mix:number}>={
+      motorway:{contrast:5,width:4.7,zoom:5,mix:.32},
+      primary:{contrast:4.4,width:3.8,zoom:6,mix:.26},
+      secondary:{contrast:3.6,width:2.5,zoom:8,mix:.21},
+      local:{contrast:2.8,width:1.9,zoom:10,mix:.16},
+      paths:{contrast:2.1,width:1.05,zoom:12,mix:.12}
+    };
+    for(const tier of ROAD_TIERS){
+      const row=result.roads[tier],target=targets[tier];
+      const opacity=detail.roads[tier]/100*(preset.settings?.roadsOpacity??1);
+      let stroke=mix(colors.roads,colors.labels,target.mix);
+      // Evaluate *displayed* contrast after road opacity is applied. For
+      // custom palettes, advance toward accessible ink only as necessary.
+      for(let i=0;i<=40&&visibleRoadContrast(stroke,colors.land,opacity)<target.contrast;i++){
+        stroke=mix(stroke,colors.labels,.10);
+      }
+      row.color=stroke;
+      row.width=Math.max(row.width??0,target.width);
+      row.zoom.min=Math.min(row.zoom.min??target.zoom,target.zoom);
+    }
+  }
   if(isLightMapSurface(colors.land)){
     // Preset-specific width reductions still need to remain visible.
     const minimum:Record<RoadTier,number>={motorway:3,primary:2.25,secondary:1.65,local:1.05,paths:.85};
