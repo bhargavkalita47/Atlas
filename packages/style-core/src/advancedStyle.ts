@@ -213,13 +213,13 @@ export function applyAdvancedStyleControls(
         if(design!.visible!==null)put(doc,layer.id,"layout","visibility",design!.visible?"visible":"none");
         applyZoom(doc,layer.id,base,design!.zoom);
         if(design!.dash!=="inherit"&&!(record(base?.paint)&&base.paint["line-pattern"])){
-          put(doc,layer.id,"paint","line-dasharray",design!.dash==="dashed"?["literal",[2,1.5]]:["literal",[1,0]]);
+          put(doc,layer.id,"paint","line-dasharray",design!.dash==="dashed"?["literal",[2,1.5]]:["literal",[1,.001]]);
         }
       }else{
         const needsOpacity=ROAD_TIERS.some(t=>settings.roads[t].visible===false||settings.roads[t].zoom.min!==null||settings.roads[t].zoom.max!==null);
         if(needsOpacity){
           const baseOpacity=sourceValue(doc,base,layer,"paint","line-opacity",1);
-          if(typeof baseOpacity==="number"){
+          if(typeof baseOpacity==="number"||(Array.isArray(baseOpacity)&&!JSON.stringify(baseOpacity).includes('"zoom"'))){
             const points=new Set<number>([0]);
             for(const t of ROAD_TIERS)for(const z of [settings.roads[t].zoom.min,settings.roads[t].zoom.max])if(z!==null)points.add(z);
             const stops=[...points].sort((a,b)=>a-b);
@@ -244,9 +244,9 @@ export function applyAdvancedStyleControls(
           const entries:JsonValue[]=[];
           for(const t of ROAD_TIERS){
             const dash=settings.roads[t].dash;
-            if(dash!=="inherit")entries.push([...roadClasses[t],["literal",dash==="dashed"?[2,1.5]:[1,0]]]);
+            if(dash!=="inherit")entries.push([...roadClasses[t],["literal",dash==="dashed"?[2,1.5]:[1,.001]]]);
           }
-          put(doc,layer.id,"paint","line-dasharray",["match",roadSelector,...entries,["literal",[1,0]]]);
+          put(doc,layer.id,"paint","line-dasharray",["match",roadSelector,...entries,["literal",[1,.001]]]);
         }
       }
       continue;
