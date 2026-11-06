@@ -80,7 +80,7 @@ export function MapDetailPanel({layers,settings,presetSettings,presetName,onChan
         <span className="atlas-detail-value">{settings.roads[tier]}%</span>
       </div>
       <input className="atlas-detail-slider" type="range"
-        aria-label={tiers[tier].name+" opacity"} min="0" max="100" step="5"
+        aria-label={tiers[tier].name+" opacity"} min="0" max="100" step="1"
         value={settings.roads[tier]} onChange={e=>setRoad(tier,Number(e.target.value))}/>
       <span className="atlas-detail-subline">
         {coverage.classified[tier]?"Separate layers: "+coverage.classified[tier]:
