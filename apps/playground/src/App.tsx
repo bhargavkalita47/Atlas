@@ -495,7 +495,9 @@ export default function App(){
                   onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
                 <AdvancedRoadPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle}/>
                 <TypographyPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle}/>
-                <ZoomDetailPanel settings={advancedSettings} onChange={setAdvancedSettings}/>
+                <ZoomDetailPanel settings={advancedSettings} onChange={setAdvancedSettings}
+                  currentZoom={view?.zoom??13}
+                  onPreviewZoom={zoom=>map.current?.setView(view?.center??GUWAHATI,zoom)}/>
                 <section className="pane-section"><div className="section-heading">
                     <div className="section-label">EDIT THEME COLOURS</div>
                     <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>

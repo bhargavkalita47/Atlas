@@ -148,7 +148,9 @@ export function TypographyPanel({settings,onChange,baseStyle}:Props){
     <p className="atlas-detail-footnote">{fonts.length} provider font stack{fonts.length===1?"":"s"} available. Additional font files are not downloaded merely by selecting a style control. Dark theme text halos remain disabled.</p>
   </section>;
 }
-export function ZoomDetailPanel({settings,onChange}:Omit<Props,"baseStyle">){
+export function ZoomDetailPanel({settings,onChange,currentZoom,onPreviewZoom}:Omit<Props,"baseStyle"> & {
+  currentZoom:number;onPreviewZoom:(zoom:number)=>void
+}){
   const roads=(tier:RoadTier,zoom:ZoomRange)=>onChange({
     ...settings,roads:{...settings.roads,[tier]:{...settings.roads[tier],zoom}}
   });
@@ -165,6 +167,11 @@ export function ZoomDetailPanel({settings,onChange}:Omit<Props,"baseStyle">){
     <div className="section-heading"><div className="section-label"><ZoomIn size={14}/> ZOOM-DEPENDENT DETAIL</div>
       <button type="button" className="quiet-button" onClick={reset}><RotateCcw size={13}/> Reset zoom rules</button></div>
     <p className="atlas-detail-intro">Set when each category first appears or disappears as you zoom. “Auto” follows the underlying map provider's zoom rules.</p>
+    <div className="atlas-zoom-preview" role="group" aria-label="Zoom level preview">
+      <span>Preview zoom · currently z{currentZoom.toFixed(1)}</span>
+      {[5,9,13,16,19].map(z=><button type="button" key={z}
+        aria-label={"Preview zoom "+z} onClick={()=>onPreviewZoom(z)}>{z}</button>)}
+    </div>
     <details className="atlas-design-fold" open><summary>Road class zoom ranges<span>5 classes</span></summary>
       {ROAD_TIERS.map(tier=><RangeField key={tier} name={roadNames[tier]} range={settings.roads[tier].zoom}
         onChange={zoom=>roads(tier,zoom)}/>)}

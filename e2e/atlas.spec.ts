@@ -406,3 +406,43 @@ test("revamped preset information hierarchy keeps manual edits across instant sw
   expect(styleRequests).toBe(before);
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
 });
+
+test("Atlas Studio edits roads, labels and zoom rules without remounting the map",async({page})=>{
+  let requests=0;
+  await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
+    requests++;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},body:JSON.stringify(fixtureStyle)});
+  });
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.evaluate(()=>{(window as Window & {originalAdvancedCanvas?:Element|null}).originalAdvancedCanvas=document.querySelector(".maplibregl-canvas");});
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.waitForLoadState("networkidle");
+  const count=requests;
+  await expect(page.locator('section[aria-label="Advanced road styling"]')).toBeVisible();
+  await page.getByRole("checkbox",{name:"Secondary & tertiary roads road custom"}).check();
+  await page.locator('input[aria-label="Secondary & tertiary roads road color"]').fill("#8844aa");
+  await page.getByRole("checkbox",{name:"Secondary & tertiary roads width custom"}).check();
+  await page.locator('input[aria-label="Secondary & tertiary roads width"]').fill("5");
+  await page.getByRole("combobox",{name:"Secondary & tertiary roads dash pattern"}).selectOption("dashed");
+  await page.getByRole("combobox",{name:"Secondary & tertiary roads visibility"}).selectOption("hide");
+  await expect(page.locator('section[aria-label="Typography studio"]')).toBeVisible();
+  await page.getByRole("checkbox",{name:"Cities & major places size custom"}).check();
+  await page.locator('input[aria-label="Cities & major places size"]').fill("1.5");
+  await page.getByRole("checkbox",{name:"Cities & major places text custom"}).check();
+  await page.locator('input[aria-label="Cities & major places text color"]').fill("#aabbcc");
+  await expect(page.locator('section[aria-label="Zoom-dependent map detail"]')).toBeVisible();
+  await page.locator('input[aria-label="Secondary & tertiary roads min zoom"]').fill("12");
+  await page.locator('input[aria-label="Buildings min zoom"]').fill("14");
+  await page.getByRole("button",{name:"Preview zoom 9"}).click();
+  await expect.poll(async()=>Number((await page.locator(".footer-pill").textContent())?.replace(/^Z/,""))).toBeCloseTo(9,0);
+  await page.getByRole("button",{name:"Preview zoom 16"}).click();
+  await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await expect(page.locator('input[aria-label="Secondary & tertiary roads min zoom"]')).toHaveValue("12");
+  await expect(page.locator('input[aria-label="Buildings min zoom"]')).toHaveValue("14");
+  await expect(page.locator('input[aria-label="Cities & major places text color"]')).toHaveValue("#aabbcc");
+  expect(requests).toBe(count);
+  expect(await page.evaluate(()=>document.querySelector(".maplibregl-canvas")===(window as Window & {originalAdvancedCanvas?:Element|null}).originalAdvancedCanvas)).toBe(true);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});
