@@ -100,11 +100,11 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#719
         <OverrideColor name={roadNames[tier]+" road"} value={settings.roads[tier].color} defaultColor={presetColor}
           onChange={color=>set(tier,{color})}/>
         <OverrideSlider name={roadNames[tier]+" width"} value={settings.roads[tier].width} initial={3}
-          min={.25} max={24} step={.25} unit=" px" onChange={width=>set(tier,{width})}/>
+          min={.25} max={24} step={.05} unit=" px" onChange={width=>set(tier,{width})}/>
         <OverrideColor name={roadNames[tier]+" casing"} value={settings.roads[tier].outlineColor} defaultColor="#485f82" disabled={!hasCasings}
           onChange={outlineColor=>set(tier,{outlineColor})}/>
         <OverrideSlider name={roadNames[tier]+" casing width"} value={settings.roads[tier].outlineWidth} initial={4} disabled={!hasCasings}
-          min={.25} max={32} step={.25} unit=" px" onChange={outlineWidth=>set(tier,{outlineWidth})}/>
+          min={.25} max={32} step={.05} unit=" px" onChange={outlineWidth=>set(tier,{outlineWidth})}/>
         <label className="atlas-design-control"><span>Line pattern</span>
           <select aria-label={roadNames[tier]+" dash pattern"} value={settings.roads[tier].dash}
             onChange={e=>set(tier,{dash:e.target.value as RoadDesign["dash"]})}>
@@ -135,9 +135,9 @@ export function TypographyPanel({settings,onChange,baseStyle,presetColor="#8495a
         <OverrideColor name={labelNames[role]+" text"} value={settings.labels[role].color} defaultColor={presetColor}
           onChange={color=>set(role,{color})}/>
         <OverrideSlider name={labelNames[role]+" size"} value={settings.labels[role].sizeScale} initial={1}
-          min={.5} max={2.5} step={.05} unit=" ×" onChange={sizeScale=>set(role,{sizeScale})}/>
+          min={.5} max={2.5} step={.01} unit=" ×" onChange={sizeScale=>set(role,{sizeScale})}/>
         <OverrideSlider name={labelNames[role]+" tracking"} value={settings.labels[role].spacing} initial={0}
-          min={-.1} max={.4} step={.01} unit=" em" onChange={spacing=>set(role,{spacing})}/>
+          min={-.1} max={.4} step={.005} unit=" em" onChange={spacing=>set(role,{spacing})}/>
         <label className="atlas-design-control"><span>Font stack / weight</span>
           <select aria-label={labelNames[role]+" font"} value={settings.labels[role].fontStack===null?"":JSON.stringify(settings.labels[role].fontStack)}
             onChange={e=>set(role,{fontStack:e.target.value?JSON.parse(e.target.value) as string[]:null})}>
