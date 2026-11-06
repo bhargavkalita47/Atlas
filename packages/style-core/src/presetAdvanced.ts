@@ -1,5 +1,6 @@
 import {getAtlasPreset,type AtlasPresetDefinition} from "./presets";
 import {getAtlasPresetDetailSettings} from "./presetDetails";
+import {ensureLightRoadContrast,isLightMapSurface} from "./roadLegibility";
 import {createAdvancedStyleSettings,LABEL_ROLES,
   type AdvancedStyleSettings,type RoadDesign,type LabelDesign,type ZoomRange,type LabelRole
 } from "./advancedStyle";
@@ -202,12 +203,26 @@ export function getAtlasPresetAdvancedSettings(id:string,paletteOverride:Advance
     const info=detail.roads[tier];
     const item=result.roads[tier];
     const blend=index===0?.08:index===1?.12:index===2?.24:index===3?.36:.47;
-    item.color=mix(colors.roads,colors.land,blend+(100-info)/600);
+    const proposed=mix(colors.roads,colors.land,blend+(100-info)/600);
+    const light=isLightMapSurface(colors.land);
+    // Important: test contrast after transparency, not just the base swatch.
+    // Previously near-white roads disappeared against near-white land.
+    // Preserve the themed hue while drawing it toward readable ink.
+    const effectiveOpacity=info/100*(preset.settings?.roadsOpacity??1);
+    item.color=ensureLightRoadContrast(
+      proposed,colors.land,colors.labels,effectiveOpacity,tier
+    );
     // Width has a cap but responds to the preset's own curated emphasis.
     item.width=round(family.widths[tier]*(0.88+info/750),.05);
+    if(light){
+      // Subpixel strokes are practically invisible on 1x screens, even with
+      // improved colour. Strengthen the footprint without making the map bold.
+      const minimum=[3,2.25,1.65,1.05,.85][index]!;
+      item.width=Math.max(item.width,minimum);
+    }
     if(family.casing&&index<3){
-      item.outlineColor=mix(colors.land,colors.labels,.22);
-      item.outlineWidth=round(item.width+1.15,.05);
+      item.outlineColor=mix(colors.land,colors.labels,light?.43:.22);
+      item.outlineWidth=round(item.width+(light?.9:1.15),.05);
     }
     if(tier==="paths"&&family.pathDash)item.dash="dashed";
   }
@@ -218,6 +233,14 @@ export function getAtlasPresetAdvancedSettings(id:string,paletteOverride:Advance
     detail.roads.local<=60?z.local+1:z.local;
   result.roads.paths.zoom.min=detail.roads.paths<=30?z.paths+1:z.paths;
   result.roads.motorway.zoom.min=5;
+  if(isLightMapSurface(colors.land)){
+    // Normal city zoom should already show the connecting street network.
+    // More granular paths still enter later to protect map density.
+    result.roads.primary.zoom.min=Math.min(result.roads.primary.zoom.min??7,7);
+    result.roads.secondary.zoom.min=Math.min(result.roads.secondary.zoom.min??9,9);
+    result.roads.local.zoom.min=Math.min(result.roads.local.zoom.min??12,12);
+    result.roads.paths.zoom.min=Math.min(result.roads.paths.zoom.min??14,14);
+  }
   const baseSize:Record<LabelRole,number>={
     city:family.city,locality:family.locality,road:family.roadText,poi:family.poi
   };
@@ -240,5 +263,17 @@ export function getAtlasPresetAdvancedSettings(id:string,paletteOverride:Advance
   result.features.terrain.min=preset.family==="nature"?7:9;
   const specific=special[id];
   if(specific)patch(result,specific);
+  if(isLightMapSurface(colors.land)){
+    // Preset-specific width reductions still need to remain visible.
+    const minimum:Record<RoadTier,number>={motorway:3,primary:2.25,secondary:1.65,local:1.05,paths:.85};
+    for(const tier of ROAD_TIERS){
+      const row=result.roads[tier];
+      if(row.width!==null)row.width=Math.max(row.width,minimum[tier]);
+      if(row.zoom.min!==null){
+        const cap:Record<RoadTier,number>={motorway:5,primary:7,secondary:9,local:12,paths:14};
+        row.zoom.min=Math.min(row.zoom.min,cap[tier]);
+      }
+    }
+  }
   return result;
 }

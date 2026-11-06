@@ -1,4 +1,5 @@
 import {getAtlasPreset,type AtlasPresetDefinition} from "./presets";
+import {isLightMapSurface,LIGHT_ROAD_OPACITY_FLOOR} from "./roadLegibility";
 import {
   ROAD_TIERS,DETAIL_FEATURES,createMapDetailSettings,
   type MapDetailSettings,type RoadTier,type DetailFeature,type DetailLevel
@@ -147,6 +148,13 @@ export function getAtlasPresetDetailSettings(id:string):MapDetailSettings{
   applyProfilePatch(result,familyProfiles[preset.family]);
   const exact=refinements[id];
   if(exact)applyProfilePatch(result,exact);
+  // The older ultra-low-opacity hierarchy made thin roads disappear on
+  // light land even when their paint colour was correct. Maintain the
+  // visual tiers, but give each one a reliably visible lower bound.
+  if(isLightMapSurface(preset.palette.land)){
+    for(const tier of ROAD_TIERS)
+      result.roads[tier]=Math.max(result.roads[tier],LIGHT_ROAD_OPACITY_FLOOR[tier]);
+  }
   return result;
 }
 /** Stable human-readable profile tag, useful for style export and diagnostics. */
