@@ -304,7 +304,7 @@ test("preset catalog is searchable and paste accepts 4-6 colours",async({page})=
   await page.getByRole("button",{name:"Style studio"}).click();
   await page.getByRole("button",{name:"Futuristic"}).click();
   await expect(page.getByRole("button",{name:"Apply Synthwave preset"})).toBeVisible();
-  await page.getByRole("button",{name:"All",{exact:true}}).click();
+  await page.getByRole("button",{name:"All",exact:true}).click();
   await page.locator('input[aria-label="Search map presets"]').fill("sahara");
   await expect(page.getByRole("button",{name:"Apply Sahara Trek preset"})).toBeVisible();
   await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveCount(0);
