@@ -216,3 +216,8 @@
 .atlas-detail-toggle input{width:16px;height:16px;accent-color:#5367d5}
 .atlas-detail-reset{display:flex;align-items:center;gap:5px;font-size:10px}
 .atlas-detail-footnote{font-size:10px;line-height:1.55;color:#7a899c;margin:11px 0 3px}
+
+.atlas-detail-visibility{flex-shrink:0;min-width:78px;border:1px solid #dce4ed;border-radius:8px;background:#f8faff;color:#43566f;padding:6px 7px;font-size:10px;font-weight:700;cursor:pointer}
+.atlas-detail-visibility:focus-visible{outline:2px solid #8195ea;outline-offset:2px}
+.atlas-detail-visibility option{font-size:12px}
+.atlas-detail-panel .section-label{display:inline-flex;align-items:center;gap:6px}
