@@ -146,7 +146,8 @@ function scaleOpacity(base:JsonValue,scale:JsonValue):JsonValue{
   if(typeof scale==="number"&&scale===1)return base;
   if(typeof base==="number"&&typeof scale==="number")
     return Number((base*scale).toFixed(5));
-  if(Array.isArray(base)&&Array.isArray(base[2])&&base[2][0]==="zoom"){
+  const zoomInput=Array.isArray(base)?base[base[0]==="step"?1:2]:null;
+  if(Array.isArray(base)&&Array.isArray(zoomInput)&&zoomInput[0]==="zoom"){
     if(base[0]==="interpolate"){
       const result:JsonValue[]=base.slice(0,3);
       for(let i=3;i+1<base.length;i+=2)
