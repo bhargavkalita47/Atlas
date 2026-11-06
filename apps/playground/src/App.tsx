@@ -16,13 +16,15 @@ import {
   STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
   getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
   applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
-  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides
+  createAdvancedStyleSettings,applyAdvancedStyleControls,
+  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides,type AdvancedStyleSettings
 } from "@atlas/style-core";
 import {PresetGallery} from "./studio/PresetGallery";
 import {PaletteEditor} from "./studio/PaletteEditor";
 import {LayerEditor} from "./studio/LayerEditor";
 import {StudioPresetCache} from "./studio/studioCache";
 import {MapDetailPanel} from "./studio/MapDetailPanel";
+import {AdvancedRoadPanel,TypographyPanel,ZoomDetailPanel} from "./studio/AdvancedStylePanels";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
 const AtlasRasterMap=lazy(()=>import("./RasterMapLoader"));
@@ -136,6 +138,7 @@ export default function App(){
   const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
   const [detailOverrides,setDetailOverrides]=useState<MapDetailOverrides>(()=>({roads:{},features:{}}));
   const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
+  const [advancedSettings,setAdvancedSettings]=useState<AdvancedStyleSettings>(()=>createAdvancedStyleSettings());
   const studioCache=useRef(new StudioPresetCache());
   const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
@@ -176,9 +179,12 @@ export default function App(){
   const presetDetailSettings=useMemo(()=>getAtlasPresetDetailSettings(basePresetId),[basePresetId]);
   const detailSettings=useMemo(()=>mergeMapDetailOverrides(presetDetailSettings,detailOverrides),
     [presetDetailSettings,detailOverrides]);
-  const effectiveStyleDocument=useMemo(()=>applyMapDetailControls(
+  const detailStyleDocument=useMemo(()=>applyMapDetailControls(
     studioDocument,studioLayers,detailSettings,mapBaseStyle
   ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
+  const effectiveStyleDocument=useMemo(()=>applyAdvancedStyleControls(
+    detailStyleDocument,studioLayers,advancedSettings,mapBaseStyle
+  ),[detailStyleDocument,studioLayers,advancedSettings,mapBaseStyle]);
   const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
   const colorsForDocument=(document:AtlasStyleDocument):VectorTheme=>{
     const fallback=getAtlasPresetCoreColors(basePresetId);
@@ -487,6 +493,9 @@ export default function App(){
                   presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
                   onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
                   onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
+                <AdvancedRoadPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle}/>
+                <TypographyPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle}/>
+                <ZoomDetailPanel settings={advancedSettings} onChange={setAdvancedSettings}/>
                 <section className="pane-section"><div className="section-heading">
                     <div className="section-label">EDIT THEME COLOURS</div>
                     <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>
