@@ -49,6 +49,22 @@ describe("Atlas map density / road hierarchy",()=>{
       ["service","track","path","footway","cycleway","pedestrian","steps","trail","bridleway"],.65,.65
     ]);
   });
+  it("preserves provider zoom-dependent opacity when fading a road class",()=>{
+    const src=base();
+    const interpolated=["interpolate",["linear"],["zoom"],5,0.2,14,0.8];
+    const mixed=src.layers.find(l=>l.id==="road-mixed")!;
+    mixed.paint!["line-opacity"]=interpolated;
+    const settings=createMapDetailSettings();
+    settings.roads.secondary=40;
+    const doc=applyMapDetailControls(createEmptyStyleDocument("test","positron"),inspectStyleLayers(src),settings,src);
+    const output=compileAtlasStyle(src,doc).style;
+    const expr=layer(output,"road-mixed").paint?.["line-opacity"];
+    expect(Array.isArray(expr)).toBe(true);
+    expect((expr as unknown[])[0]).toBe("interpolate");
+    expect((expr as unknown[])[2]).toEqual(["zoom"]);
+    expect((expr as unknown[])[4]).toEqual(expect.arrayContaining(["*"]));
+    expect(JSON.stringify(src.layers.find(l=>l.id==="road-mixed")!.paint!["line-opacity"])).toBe(JSON.stringify(interpolated));
+  });
   it("controls visibility and opacity by semantic feature, preserving the background",()=>{
     const s=createMapDetailSettings();
     s.features.buildings={visible:false,opacity:40};

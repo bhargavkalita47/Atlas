@@ -127,14 +127,41 @@ function underlyingOpacity(
   doc:AtlasStyleDocument,
   layer:StyleLayerDescriptor,
   property:string
-):number {
+):JsonValue {
   const existing=doc.layers[layer.id]?.paint?.[property];
   const groupOpacity=layer.suggestedGroup?doc.groups[layer.suggestedGroup]?.opacity:undefined;
   const paint=isRecord(baseLayer?.paint)?baseLayer.paint:{};
-  const seed=typeof existing==="number"?existing
+  const valid=(v:unknown):v is JsonValue=>typeof v==="number"||Array.isArray(v);
+  const seed=valid(existing)?existing
     :typeof groupOpacity==="number"?groupOpacity
-    :typeof paint[property]==="number"?paint[property]:1;
-  return Math.min(1,Math.max(0,seed));
+    :valid(paint[property])?paint[property]:1;
+  return JSON.parse(JSON.stringify(seed)) as JsonValue;
+}
+/**
+ * Multiplication is applied inside top-level zoom interpolation/step stops,
+ * keeping ["zoom"] in its legal top-level expression position. This retains
+ * the provider's zoom-driven visibility instead of flattening it.
+ */
+function scaleOpacity(base:JsonValue,scale:JsonValue):JsonValue{
+  if(typeof scale==="number"&&scale===1)return base;
+  if(typeof base==="number"&&typeof scale==="number")
+    return Number((base*scale).toFixed(5));
+  if(Array.isArray(base)&&Array.isArray(base[2])&&base[2][0]==="zoom"){
+    if(base[0]==="interpolate"){
+      const result:JsonValue[]=base.slice(0,3);
+      for(let i=3;i+1<base.length;i+=2)
+        result.push(base[i]!,scaleOpacity(base[i+1]!,scale));
+      return result;
+    }
+    if(base[0]==="step"){
+      const result:JsonValue[]=base.slice(0,2);
+      if(base.length>=3)result.push(scaleOpacity(base[2]!,scale));
+      for(let i=3;i+1<base.length;i+=2)
+        result.push(base[i]!,scaleOpacity(base[i+1]!,scale));
+      return result;
+    }
+  }
+  return ["*",base,scale];
 }
 const roadValues:Readonly<Record<RoadTier,readonly string[]>>={
   motorway:["motorway","trunk","freeway","motorway_link","trunk_link","expressway"],
@@ -143,14 +170,20 @@ const roadValues:Readonly<Record<RoadTier,readonly string[]>>={
   local:["residential","minor","unclassified","living_street","living","street","local"],
   paths:["service","track","path","footway","cycleway","pedestrian","steps","trail","bridleway"]
 };
-function roadOpacityExpression(roads:Record<RoadTier,number>,base:number):JsonValue{
-  const selectors:JsonValue[]=[];
-  for(const tier of ROAD_TIERS)selectors.push([...roadValues[tier]],Number((base*safePercent(roads[tier])).toFixed(4)));
-  // Unknown feature classes retain their original, category-wide opacity.
-  return ["match",
-    ["to-string",["coalesce",["get","class"],["get","highway"],["get","type"],""]],
-    ...selectors,base
-  ] as JsonValue;
+function roadOpacityExpression(roads:Record<RoadTier,number>,base:JsonValue):JsonValue{
+  const selector:JsonValue=["to-string",["coalesce",["get","class"],["get","highway"],["get","type"],""]];
+  const parts:JsonValue[]=[];
+  if(typeof base==="number"){
+    for(const tier of ROAD_TIERS)
+      parts.push([...roadValues[tier]],Number((base*safePercent(roads[tier])).toFixed(5)));
+    // Unknown classes inherit the untouched base style opacity.
+    return ["match",selector,...parts,base];
+  }
+  // If the base opacity is a provider expression, preserve its zoom/function
+  // structure by multiplying it by a per-feature road-class factor.
+  for(const tier of ROAD_TIERS)
+    parts.push([...roadValues[tier]],safePercent(roads[tier]));
+  return scaleOpacity(base,["match",selector,...parts,1]);
 }
 function copy<T>(value:T):T{return JSON.parse(JSON.stringify(value)) as T;}
 function baseLayerIndex(baseStyle:unknown):Map<string,Record<string,unknown>>{
@@ -188,7 +221,7 @@ export function applyMapDetailControls(
       if(direct&&settings.roads[direct]===100)continue;
       const baseOpacity=underlyingOpacity(originals.get(layer.id),next,layer,"line-opacity");
       if(direct){
-        override.paint!["line-opacity"]=Number((baseOpacity*safePercent(settings.roads[direct])).toFixed(4));
+        override.paint!["line-opacity"]=scaleOpacity(baseOpacity,safePercent(settings.roads[direct]));
       }else{
         // Shared vector road layer. Match actual OSM road class (or highway
         // equivalent) per feature; never fade the entire layer together.
@@ -205,7 +238,7 @@ export function applyMapDetailControls(
       if(level.opacity!==100){
         for(const property of propertyByType[layer.type]??[]){
           const factor=underlyingOpacity(originals.get(layer.id),next,layer,property);
-          override.paint![property]=Number((factor*safePercent(level.opacity)).toFixed(4));
+          override.paint![property]=scaleOpacity(factor,safePercent(level.opacity));
           changed++;
         }
       }
