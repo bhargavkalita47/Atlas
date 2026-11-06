@@ -243,3 +243,30 @@ test("style studio edits an exact vector layer and resets without remounting",as
   await expect(page.getByText("0 overridden")).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 });
+
+test("preset gallery applies, customizes and resets themes without a new canvas",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.evaluate(()=>{
+    (window as Window & {atlasOriginalCanvas?:Element|null}).atlasOriginalCanvas=document.querySelector(".maplibregl-canvas");
+  });
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.getByRole("button",{name:"Apply Minimal Light preset"})).toHaveAttribute("aria-pressed","true");
+  await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator('input[aria-label="Land / background color"]')).toHaveValue("#f5f0e4");
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+  await page.locator('input[aria-label="Rivers and water"]').fill("#123456");
+  await expect(page.getByText("Custom theme")).toBeVisible();
+  await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveAttribute("aria-pressed","false");
+  await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await expect(page.locator('input[aria-label="Rivers and water"]')).toHaveValue("#bfd9dd");
+  await page.getByRole("button",{name:"Apply Blueprint preset"}).click();
+  await expect(page.getByRole("button",{name:"Apply Blueprint preset"})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  const sameCanvas=await page.evaluate(()=>
+    document.querySelector(".maplibregl-canvas")===(window as Window & {atlasOriginalCanvas?:Element|null}).atlasOriginalCanvas
+  );
+  expect(sameCanvas).toBe(true);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});

@@ -127,3 +127,30 @@
 .atlas-layer-color code,.atlas-layer-scale span{font-size:10px;color:#667890;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .atlas-layer-scale input[type=range]{flex:1;min-width:70px;accent-color:#596dda}
 .atlas-layer-inspector button:disabled{opacity:.45;cursor:not-allowed}
+
+/* Atlas style preset gallery — previews are composed from real palette values. */
+.atlas-preset-intro{font-size:11px;line-height:1.65;color:#748398;margin:-7px 0 15px}
+.atlas-preset-total{font-size:10px;color:#6d7c91;white-space:nowrap}
+.atlas-preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.atlas-preset-card{position:relative;display:flex;flex-direction:column;overflow:hidden;min-width:0;border:1px solid #dce5ef;border-radius:11px;background:#fff;text-align:left;padding:5px;cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.atlas-preset-card:hover,.atlas-preset-card:focus-visible{border-color:#7489cb;box-shadow:0 0 0 1px #7489cb}
+.atlas-preset-card.is-active{border-color:#5265d5;box-shadow:0 0 0 1px #5265d5}
+.atlas-preset-preview{display:block;position:relative;width:100%;height:83px;border-radius:7px;overflow:hidden;isolation:isolate}
+.atlas-preset-preview>span:not(.atlas-preset-map-label){position:absolute;display:block}
+.atlas-preset-park{width:58%;height:56%;left:-13%;top:-11%;transform:rotate(12deg);border-radius:35% 45% 42% 20%;opacity:.96}
+.atlas-preset-water{width:27%;height:160%;right:10%;top:-30%;transform:rotate(21deg);border-radius:45%;opacity:.96}
+.atlas-preset-building{width:15%;height:17%;border-radius:2px;transform:rotate(-17deg)}
+.atlas-preset-building.b1{left:17%;top:61%}.atlas-preset-building.b2{left:39%;top:16%}.atlas-preset-building.b3{right:17%;bottom:17%}
+.atlas-preset-road{height:6px;border:1px solid rgba(110,120,130,.18);border-left:0;border-right:0;border-radius:2px}
+.atlas-preset-road.r1{width:135%;left:-15%;top:47%;transform:rotate(-26deg)}
+.atlas-preset-road.r2{width:113%;left:-12%;top:57%;transform:rotate(47deg);height:4px}
+.atlas-preset-road.r3{width:80%;left:10%;top:11%;transform:rotate(5deg);height:3px}
+.atlas-preset-map-label{position:absolute;top:15%;left:8%;font-size:9px;font-weight:800;letter-spacing:1.8px;text-shadow:0 1px 2px rgba(255,255,255,.18)}
+.atlas-preset-card-copy{display:flex;flex-direction:column;gap:3px;padding:10px 6px 7px;min-height:75px}
+.atlas-preset-card-copy strong{font-size:11px;color:#26384e;line-height:1.25}
+.atlas-preset-card-copy small{font-size:9px;color:#72839a;line-height:1.35;min-height:24px}
+.atlas-preset-card-meta{font-size:9px;letter-spacing:.2px;color:#8391a2}
+.atlas-preset-selected{position:absolute;right:11px;top:11px;background:#5265d5;color:white;border-radius:50%;width:20px;height:20px;display:grid;place-items:center;box-shadow:0 1px 4px #0002}
+.atlas-preset-status{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:13px;padding:10px 11px;border:1px solid #e7eaf0;border-radius:9px;background:#f8f9fc;font-size:10px;color:#5b6a80}
+.atlas-preset-status strong{color:#253954}
+@media(max-width:700px){.atlas-preset-preview{height:76px}.atlas-preset-grid{gap:9px}}
