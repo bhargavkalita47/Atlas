@@ -228,3 +228,18 @@ test.describe("mobile multi-touch regression",()=>{
     await cdp.detach();
   });
 });
+
+test("style studio edits an exact vector layer and resets without remounting",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.getByText(/EDITABLE MAP LAYERS/)).toBeVisible();
+  await page.getByRole("button",{name:/fixture-dot/}).click();
+  await page.locator('input[aria-label="Layer color"]').fill("#224466");
+  await expect(page.getByText("1 overridden")).toBeVisible();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+  await page.getByRole("button",{name:"Reset selected layer"}).click();
+  await expect(page.getByText("0 overridden")).toBeVisible();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+});

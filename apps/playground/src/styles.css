@@ -105,3 +105,25 @@
 .vector-loading-state .spinner{display:block;border:3px solid #b8c7dd;border-top-color:#5265d5;border-radius:50%;width:27px;height:27px;animation:spin .8s linear infinite}
 .vector-loading-state strong{font-size:13px}
 .vector-loading-state small{font-size:11px;color:#667c95}
+
+/* Style Studio v2: exact source-layer editing without reinitialising the map. */
+.atlas-layer-filter{display:grid;grid-template-columns:1fr;gap:7px;margin-bottom:12px}
+.atlas-layer-filter input,.atlas-layer-filter select,.atlas-layer-field select{width:100%;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#2d3c50;font:inherit;font-size:12px;padding:9px 10px;min-width:0}
+.atlas-layer-list{display:flex;flex-direction:column;gap:4px;max-height:240px;overflow-y:auto;overscroll-behavior:contain;margin-bottom:17px}
+.atlas-layer-choice{display:flex;align-items:center;text-align:left;gap:9px;width:100%;padding:8px;border:1px solid transparent;border-radius:8px;background:#f7f9fb;color:#33445c}
+.atlas-layer-choice.selected{border-color:#7890c8;background:#edf2ff}
+.atlas-layer-choice>span:nth-child(2){flex:1;min-width:0}
+.atlas-layer-choice strong{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.atlas-layer-choice small{display:block;font-size:9px;color:#75869c;margin-top:4px;text-transform:capitalize}
+.atlas-layer-icon{display:grid;place-items:center;background:#e3e9f3;border-radius:6px;min-width:25px;height:25px;font-weight:800}
+.atlas-layer-dot{width:7px;height:7px;border-radius:50%;background:#596dda}
+.atlas-layer-count{font-size:10px;color:#60768c;white-space:nowrap}
+.atlas-layer-inspector{border-top:1px solid #e6ebf2;padding-top:16px}
+.atlas-layer-meta{display:grid;gap:5px;margin:0 0 15px;font-size:10px;color:#708096;overflow-wrap:anywhere}
+.atlas-layer-meta strong{font-size:12px;color:#1d3149}
+.atlas-layer-field{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;font-size:11px;font-weight:700;color:#3e4e64}
+.atlas-layer-color,.atlas-layer-scale{display:flex;align-items:center;gap:9px;min-width:0}
+.atlas-layer-color input[type=color]{width:39px;height:35px;min-width:39px;border:1px solid #dce4ed;border-radius:8px;padding:2px}
+.atlas-layer-color code,.atlas-layer-scale span{font-size:10px;color:#667890;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.atlas-layer-scale input[type=range]{flex:1;min-width:70px;accent-color:#596dda}
+.atlas-layer-inspector button:disabled{opacity:.45;cursor:not-allowed}
