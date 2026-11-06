@@ -96,7 +96,7 @@ export function classifyRoadLayer(layer:StyleLayerDescriptor):RoadTier|null{
   if(/(?:^|[- ])(?:residential|minor|local|living|street|unclassified)(?:$|[- ])/.test(id))return "local";
   return null;
 }
-function featureFor(layer:StyleLayerDescriptor):DetailFeature|null{
+export function classifyMapFeature(layer:StyleLayerDescriptor):DetailFeature|null{
   if(layer.type==="background")return null; // Always retain the background.
   const id=tokenLayer(layer.id);
   const src=(layer.sourceLayer??"").toLowerCase().replace(/_/g,"-");
@@ -210,7 +210,7 @@ export function applyMapDetailControls(
   let changed=0;
   for(const layer of layers){
     if(layer.id.startsWith("atlas-"))continue;
-    const feature=featureFor(layer);
+    const feature=classifyMapFeature(layer);
     const road=layer.type==="line"&&layer.suggestedGroup==="roads"&&feature!=="transit";
     if(!road&&!feature)continue;
     const prior:LayerOverride=next.layers[layer.id]??{};

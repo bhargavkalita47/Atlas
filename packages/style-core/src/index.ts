@@ -310,5 +310,8 @@ export type {AtlasPresetDefinition,AtlasPresetId,AtlasPresetDocumentOptions} fro
 export {PALETTE_MIN_COLORS,PALETTE_MAX_COLORS,normalizeHexColor,validatePaletteSeeds,parseHexPalette,deriveSemanticPalette,mixPaletteColors,contrastRatio,relativeLuminance,reskinAtlasPreset} from "./palette";
 export type {SemanticPalette,PaletteSlots} from "./palette";
 
-export {ROAD_TIERS,DETAIL_FEATURES,createMapDetailSettings,classifyRoadLayer,applyMapDetailControls,mergeMapDetailOverrides,deriveMapDetailOverrides} from "./detailControls";
+export {ROAD_TIERS,DETAIL_FEATURES,createMapDetailSettings,classifyRoadLayer,classifyMapFeature,applyMapDetailControls,mergeMapDetailOverrides,deriveMapDetailOverrides} from "./detailControls";
 export type {RoadTier,DetailFeature,DetailLevel,DetailDensity,MapDetailSettings,MapDetailOverrides} from "./detailControls";
+
+export {LABEL_ROLES,createAdvancedStyleSettings,availableProviderFonts,classifyLabelRole,validateAdvancedStyleSettings,applyAdvancedStyleControls} from "./advancedStyle";
+export type {LabelRole,RoadDash,RoadDesign,LabelDesign,ZoomRange,AdvancedStyleSettings} from "./advancedStyle";
