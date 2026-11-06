@@ -15,12 +15,14 @@ import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
 import {
   STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
   getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
-  type AtlasStyleDocument,type StyleLayerDescriptor
+  applyMapDetailControls,createMapDetailSettings,
+  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailSettings
 } from "@atlas/style-core";
 import {PresetGallery} from "./studio/PresetGallery";
 import {PaletteEditor} from "./studio/PaletteEditor";
 import {LayerEditor} from "./studio/LayerEditor";
 import {StudioPresetCache} from "./studio/studioCache";
+import {MapDetailPanel} from "./studio/MapDetailPanel";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
 const AtlasRasterMap=lazy(()=>import("./RasterMapLoader"));
@@ -132,6 +134,8 @@ export default function App(){
   const [customPalette,setCustomPalette]=useState<string[]|null>(null);
   const [studioLayers,setStudioLayers]=useState<StyleLayerDescriptor[]>([]);
   const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
+  const [detailSettings,setDetailSettings]=useState<MapDetailSettings>(()=>createMapDetailSettings());
+  const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
   const studioCache=useRef(new StudioPresetCache());
   const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
@@ -169,6 +173,9 @@ export default function App(){
     for(const url of Object.values(KEYLESS_VECTOR_STYLES))
       preloadVectorStyle(url,"low");
   },[]);
+  const effectiveStyleDocument=useMemo(()=>applyMapDetailControls(
+    studioDocument,studioLayers,detailSettings,mapBaseStyle
+  ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
   const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
   const colorsForDocument=(document:AtlasStyleDocument):VectorTheme=>{
     const fallback=getAtlasPresetCoreColors(basePresetId);
@@ -473,6 +480,8 @@ export default function App(){
                   palette={customPalette} onApply={choosePreset}/>
                 <PaletteEditor presetId={basePresetId} colors={customPalette}
                   onChange={applyCustomPalette}/>
+                <MapDetailPanel layers={studioLayers} settings={detailSettings}
+                  onChange={setDetailSettings}/>
                 <section className="pane-section"><div className="section-heading">
                     <div className="section-label">EDIT THEME COLOURS</div>
                     <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>
@@ -489,7 +498,7 @@ export default function App(){
                       }}/>
                   </label>)}</div>
                   <button className="secondary-button" onClick={()=>{
-                    downloadText("atlas-style-v2.json",stringifyAtlasStyleDocument(studioDocument));
+                    downloadText("atlas-style-v2.json",stringifyAtlasStyleDocument(effectiveStyleDocument));
                     log("Exported Atlas style document v2");
                   }}><Download size={16}/> Export editable style JSON (v2)</button>
                   <div className="muted-tip">Presets apply immediately. Changing a colour or individual layer creates a Custom theme without altering the original preset. Layer bindings depend on the loaded vector style.</div>
@@ -581,8 +590,9 @@ export default function App(){
               zoom={view?.zoom??13}
               styleUrl={KEYLESS_VECTOR_STYLES[vectorStyle]}
               theme={vectorTheme}
-              styleDocument={studioDocument}
-              onStyleLayers={layers=>{
+              styleDocument={effectiveStyleDocument}
+              onStyleLayers={(layers,baseStyle)=>{
+                setMapBaseStyle(baseStyle??null);
                 // The inventory is provider-specific. Prepare all 81 Atlas
                 // recipes once; subsequent selections use independent copies.
                 studioCache.current.prepare(vectorStyle,layers);

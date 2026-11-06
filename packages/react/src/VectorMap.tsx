@@ -86,7 +86,7 @@ export interface AtlasVectorMapProps {
   theme: VectorTheme;
   /** Optional v2 authoring document; takes precedence over legacy six-color theme. */
   styleDocument?: AtlasStyleDocument;
-  onStyleLayers?: (layers:StyleLayerDescriptor[]) => void;
+  onStyleLayers?: (layers:StyleLayerDescriptor[],baseStyle?:JsonRecord) => void;
   onStyleDiagnostics?: (diagnostics:StyleDiagnostic[]) => void;
   markers: readonly MarkerData[];
   shapes: readonly Shape[];
@@ -281,7 +281,7 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
           appliedStyleRef.current=applied.appliedStyle;
           if(applied.diagnostics.length)latest.current.onStyleDiagnostics?.(applied.diagnostics);
         }else applyVectorTheme(instance,themeRef.current);
-        latest.current.onStyleLayers?.(layers);
+        latest.current.onStyleLayers?.(layers,baseStyle as unknown as JsonRecord);
         latest.current.onPerformance?.({
           phase:"style",
           elapsedMs:Math.round(performance.now()-styleBeganAt),
