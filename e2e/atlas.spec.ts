@@ -254,7 +254,7 @@ test("preset gallery applies, customizes and resets themes without a new canvas"
   await expect(page.getByRole("button",{name:"Apply Minimal Light preset"})).toHaveAttribute("aria-pressed","true");
   await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
   await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveAttribute("aria-pressed","true");
-  await expect(page.locator('input[aria-label="Land / background color"]')).toHaveValue("#f5f0e4");
+  await expect(page.locator('input[aria-label="Land / background"]')).toHaveValue("#f5f0e4");
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
   await page.locator('input[aria-label="Rivers and water"]').fill("#123456");
   await expect(page.getByText("Custom theme")).toBeVisible();
