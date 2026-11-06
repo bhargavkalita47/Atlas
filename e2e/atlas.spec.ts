@@ -330,7 +330,8 @@ test("warm Atlas Studio presets switch across base recipes without style reload"
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await page.getByRole("button",{name:"Style studio"}).click();
   await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("81 presets prepared in memory");
-  const canvas=await page.locator(".maplibregl-canvas").elementHandle();
+  await page.evaluate(()=>{(window as Window & {atlasCachedCanvas?:Element|null}).atlasCachedCanvas=document.querySelector(".maplibregl-canvas");});
+  await page.waitForLoadState("networkidle");
   const before=styleRequests;
   // Originally Blueprint was mapped to the Dark provider style, Terra to
   // Liberty. Studio must keep Positron loaded and use incremental paint.
@@ -343,6 +344,6 @@ test("warm Atlas Studio presets switch across base recipes without style reload"
   await page.getByRole("button",{name:"Apply Minimal Light preset"}).click();
   await expect(page.locator('input[aria-label="Palette colour 1"]')).toHaveValue("#112233");
   expect(styleRequests).toBe(before);
-  expect(await page.locator(".maplibregl-canvas").elementHandle()).toEqual(canvas);
+  expect(await page.evaluate(()=>document.querySelector(".maplibregl-canvas")===(window as Window & {atlasCachedCanvas?:Element|null}).atlasCachedCanvas)).toBe(true);
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
 });
