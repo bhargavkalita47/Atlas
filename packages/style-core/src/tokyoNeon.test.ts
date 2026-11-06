@@ -52,8 +52,18 @@ describe("Tokyo Neon road display regression",()=>{
       // This real filter covers the "minor" and "service" roads Tokyo uses.
       expect(JSON.stringify(minor.filter)).toContain("minor");
       expect(JSON.stringify(minor.filter)).toContain("service");
-      expect(JSON.stringify(minor.paint?.["line-color"])).toContain("minor");
-      expect(JSON.stringify(minor.paint?.["line-opacity"])).toContain("minor");
+      // A provider may draw all three classes in one layer named "minor".
+      // Atlas should give it a visible road colour and opacity, whether the
+      // compiler uses a constant for this named layer or an expression.
+      const color=minor.paint?.["line-color"];
+      const opacity=minor.paint?.["line-opacity"];
+      expect(color).toBeDefined();
+      expect(opacity).toBeDefined();
+      if(typeof color==="string")
+        expect(color).toBe(getAtlasPresetAdvancedSettings("tokyo-neon").roads.local.color);
+      else expect(JSON.stringify(color)).toContain("minor");
+      if(typeof opacity==="number")expect(opacity).toBeGreaterThan(0.5);
+      else expect(JSON.stringify(opacity)).toContain("minor");
     }
   });
   it("retains other dark presets unchanged and recolours Tokyo custom palettes",()=>{
