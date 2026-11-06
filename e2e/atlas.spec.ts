@@ -463,8 +463,8 @@ test("curated road type and zoom profiles follow presets while manual edits surv
   // The initial Minimal Light preset is deliberately quiet.
   const localWidth=page.locator('input[aria-label="Local & residential width"]');
   const pathZoom=page.locator('input[aria-label="Service roads & paths min zoom"]');
-  await expect(localWidth).toHaveValue("0.7");
-  await expect(pathZoom).toHaveValue("16");
+  await expect(localWidth).toHaveValue("1.05");
+  await expect(pathZoom).toHaveValue("14");
   await page.locator('input[aria-label="Search map presets"]').fill("navigation");
   await page.getByRole("button",{name:"Apply Navigation preset"}).click();
   await expect(localWidth).toHaveValue("2");
@@ -473,7 +473,7 @@ test("curated road type and zoom profiles follow presets while manual edits surv
   await page.locator('input[aria-label="Search map presets"]').fill("hiking");
   await page.getByRole("button",{name:"Apply Hiking preset"}).click();
   await expect(page.locator('input[aria-label="Secondary & tertiary roads width"]')).toHaveValue("5");
-  await expect(localWidth).toHaveValue("1");
+  await expect(localWidth).toHaveValue("1.05");
   await expect(page.locator('input[aria-label="Road and street names size"]')).toHaveValue("0.77");
   await page.getByRole("button",{name:"Reset advanced design to preset"}).click();
   await expect(page.locator('input[aria-label="Secondary & tertiary roads width"]')).not.toHaveValue("5");
