@@ -305,3 +305,6 @@ export function stringifyAtlasStyleDocument(document:AtlasStyleDocument):string{
 
 export {ATLAS_STYLE_PRESETS,getAtlasPreset,getAtlasPresetCoreColors,createAtlasPresetDocument} from "./presets";
 export type {AtlasPresetDefinition,AtlasPresetId} from "./presets";
+
+export {PALETTE_MIN_COLORS,PALETTE_MAX_COLORS,normalizeHexColor,validatePaletteSeeds,parseHexPalette,deriveSemanticPalette,mixPaletteColors,contrastRatio,relativeLuminance,reskinAtlasPreset} from "./palette";
+export type {SemanticPalette,PaletteSlots} from "./palette";
