@@ -54,6 +54,7 @@ function tokenLayer(id:string):string{
 export function classifyRoadLayer(layer:StyleLayerDescriptor):RoadTier|null{
   if(layer.type!=="line"||layer.suggestedGroup!=="roads")return null;
   const id=tokenLayer(layer.id);
+  if(/rail|tram|subway|metro|transit/.test(id))return null;
   if(/(?:^|[- ])(?:motorway|trunk|freeway|expressway)(?:$|[- ])/.test(id))return "motorway";
   if(/(?:^|[- ])(?:primary|highway|major)(?:$|[- ])/.test(id))return "primary";
   if(/(?:^|[- ])(?:secondary|tertiary|collector)(?:$|[- ])/.test(id))return "secondary";
@@ -65,6 +66,7 @@ function featureFor(layer:StyleLayerDescriptor):DetailFeature|null{
   if(layer.type==="background")return null; // Always retain the background.
   const id=tokenLayer(layer.id);
   const src=(layer.sourceLayer??"").toLowerCase().replace(/_/g,"-");
+  if(layer.type==="line"&&/rail|tram|subway|metro|transit/.test(id))return "transit";
   if(layer.type==="symbol"){
     if(layer.suggestedGroup==="poi"||/poi|amenity|shop|icon/.test(id)||/poi/.test(src))return "poi";
     if(/road|street|highway|transport|route/.test(id)||/transportation-name|road-name/.test(src))
@@ -140,8 +142,8 @@ export function applyMapDetailControls(
   let changed=0;
   for(const layer of layers){
     if(layer.id.startsWith("atlas-"))continue;
-    const road=layer.type==="line"&&layer.suggestedGroup==="roads";
     const feature=featureFor(layer);
+    const road=layer.type==="line"&&layer.suggestedGroup==="roads"&&feature!=="transit";
     if(!road&&!feature)continue;
     const prior:LayerOverride=next.layers[layer.id]??{};
     const override:LayerOverride={...prior,paint:{...prior.paint},layout:{...prior.layout}};

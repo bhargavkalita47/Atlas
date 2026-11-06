@@ -9,6 +9,7 @@ const base=()=>({
     {id:"road-motorway",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.85,"line-width":4}},
     {id:"road-secondary",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.8}},
     {id:"road-mixed",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.65}},
+    {id:"railway-tram",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.9}},
     {id:"road-name",type:"symbol",source:"roads","source-layer":"transportation_name",layout:{"text-field":["get","name"]}},
     {id:"place-label",type:"symbol",source:"roads","source-layer":"place"},
     {id:"poi-label",type:"symbol",source:"roads","source-layer":"poi"},
@@ -77,6 +78,16 @@ describe("Atlas map density / road hierarchy",()=>{
     controls.features.poi={visible:false,opacity:100};
     const hidden=compileAtlasStyle(style,applyMapDetailControls(doc,layers,controls,style)).style;
     expect(layer(hidden,"poi-label").layout?.visibility).toBe("none");
+  });
+  it("treats tram/rail layers as transit even if provider calls the source transportation",()=>{
+    const settings=createMapDetailSettings();
+    settings.roads.local=0;
+    settings.features.transit={visible:false,opacity:50};
+    const result=compiled(settings);
+    expect(layer(result.style,"railway-tram").layout?.visibility).toBe("none");
+    expect(layer(result.style,"railway-tram").paint?.["line-opacity"]).toBe(.45);
+    const style=base();
+    expect(classifyRoadLayer(inspectStyleLayers(style).find(x=>x.id==="railway-tram")!)).toBeNull();
   });
   it("preserves original documents and restores the original style when reset",()=>{
     const style=base(),original=JSON.stringify(style);
