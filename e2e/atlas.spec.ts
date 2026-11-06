@@ -447,3 +447,36 @@ test("Atlas Studio edits roads, labels and zoom rules without remounting the map
   expect(await page.evaluate(()=>document.querySelector(".maplibregl-canvas")===(window as Window & {originalAdvancedCanvas?:Element|null}).originalAdvancedCanvas)).toBe(true);
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
 });
+
+test("curated road type and zoom profiles follow presets while manual edits survive",async({page})=>{
+  let styleRequests=0;
+  await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
+    styleRequests++;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},body:JSON.stringify(fixtureStyle)});
+  });
+  await page.goto("/");
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("81 presets prepared in memory");
+  await page.waitForLoadState("networkidle");
+  const before=styleRequests;
+  // The initial Minimal Light preset is deliberately quiet.
+  const localWidth=page.locator('input[aria-label="Local & residential width"]');
+  const pathZoom=page.locator('input[aria-label="Service roads & paths min zoom"]');
+  await expect(localWidth).toHaveValue("0.7");
+  await expect(pathZoom).toHaveValue("16");
+  await page.locator('input[aria-label="Search map presets"]').fill("navigation");
+  await page.getByRole("button",{name:"Apply Navigation preset"}).click();
+  await expect(localWidth).toHaveValue("2");
+  await expect(page.locator('input[aria-label="Road and street names size"]')).toHaveValue("1.28");
+  await page.locator('input[aria-label="Secondary & tertiary roads width"]').fill("5");
+  await page.locator('input[aria-label="Search map presets"]').fill("hiking");
+  await page.getByRole("button",{name:"Apply Hiking preset"}).click();
+  await expect(page.locator('input[aria-label="Secondary & tertiary roads width"]')).toHaveValue("5");
+  await expect(localWidth).toHaveValue("1");
+  await expect(page.locator('input[aria-label="Road and street names size"]')).toHaveValue("0.77");
+  await page.getByRole("button",{name:"Reset advanced design to preset"}).click();
+  await expect(page.locator('input[aria-label="Secondary & tertiary roads width"]')).not.toHaveValue("5");
+  expect(styleRequests).toBe(before);
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+});
