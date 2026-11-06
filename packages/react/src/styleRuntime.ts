@@ -51,8 +51,8 @@ export function applyAtlasStyleDocument(
         if(equal(prevProps[prop],nextProps[prop]))continue;
         try{
           const value=nextProps[prop]===undefined?null:nextProps[prop];
-          if(slot==="paint")map.setPaintProperty(id,prop,value as Parameters<MapLibreMap["setPaintProperty"]>[2]);
-          else map.setLayoutProperty(id,prop,value as Parameters<MapLibreMap["setLayoutProperty"]>[2]);
+          if(slot==="paint")map.setPaintProperty(id,prop as Parameters<MapLibreMap["setPaintProperty"]>[1],value as Parameters<MapLibreMap["setPaintProperty"]>[2]);
+          else map.setLayoutProperty(id,prop as Parameters<MapLibreMap["setLayoutProperty"]>[1],value as Parameters<MapLibreMap["setLayoutProperty"]>[2]);
           changes++;
         }catch(err){
           failed=true;
