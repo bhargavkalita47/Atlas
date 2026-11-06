@@ -16,8 +16,9 @@ import {
   STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
   getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
   applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
-  createAdvancedStyleSettings,applyAdvancedStyleControls,
-  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides,type AdvancedStyleSettings
+  applyAdvancedStyleControls,getAtlasPresetAdvancedSettings,
+  createAdvancedOverrides,mergeAdvancedOverrides,deriveAdvancedOverrides,
+  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides,type AdvancedOverrides
 } from "@atlas/style-core";
 import {PresetGallery} from "./studio/PresetGallery";
 import {PaletteEditor} from "./studio/PaletteEditor";
@@ -138,7 +139,7 @@ export default function App(){
   const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
   const [detailOverrides,setDetailOverrides]=useState<MapDetailOverrides>(()=>({roads:{},features:{}}));
   const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
-  const [advancedSettings,setAdvancedSettings]=useState<AdvancedStyleSettings>(()=>createAdvancedStyleSettings());
+  const [advancedOverrides,setAdvancedOverrides]=useState<AdvancedOverrides>(()=>createAdvancedOverrides());
   const studioCache=useRef(new StudioPresetCache());
   const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
@@ -179,6 +180,22 @@ export default function App(){
   const presetDetailSettings=useMemo(()=>getAtlasPresetDetailSettings(basePresetId),[basePresetId]);
   const detailSettings=useMemo(()=>mergeMapDetailOverrides(presetDetailSettings,detailOverrides),
     [presetDetailSettings,detailOverrides]);
+  // Preset typography and road colours follow the currently selected
+  // semantic palette, including custom 4–6-colour reskins. Manual controls
+  // are sparse overrides, never baked into the prewarmed preset cache.
+  const presetAdvancedSettings=useMemo(()=>{
+    const preset=getAtlasPreset(basePresetId);
+    return getAtlasPresetAdvancedSettings(basePresetId,{
+      land:studioDocument.groups.land?.color??preset.palette.land,
+      roads:studioDocument.groups.roads?.color??preset.palette.roads,
+      labels:studioDocument.groups.labels?.color??preset.palette.labels
+    });
+  },[basePresetId,studioDocument]);
+  const advancedSettings=useMemo(()=>mergeAdvancedOverrides(presetAdvancedSettings,advancedOverrides),
+    [presetAdvancedSettings,advancedOverrides]);
+  const changeAdvancedSettings=(next:typeof advancedSettings)=>
+    setAdvancedOverrides(deriveAdvancedOverrides(presetAdvancedSettings,next));
+  const resetAdvancedSettings=()=>setAdvancedOverrides(createAdvancedOverrides());
   const detailStyleDocument=useMemo(()=>applyMapDetailControls(
     studioDocument,studioLayers,detailSettings,mapBaseStyle
   ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
@@ -493,9 +510,9 @@ export default function App(){
                   presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
                   onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
                   onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
-                <AdvancedRoadPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.roads}/>
-                <TypographyPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.labels}/>
-                <ZoomDetailPanel settings={advancedSettings} onChange={setAdvancedSettings}
+                <AdvancedRoadPanel settings={advancedSettings} onChange={changeAdvancedSettings} onReset={resetAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.roads}/>
+                <TypographyPanel settings={advancedSettings} onChange={changeAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.labels}/>
+                <ZoomDetailPanel settings={advancedSettings} onChange={changeAdvancedSettings}
                   currentZoom={view?.zoom??13}
                   onPreviewZoom={zoom=>map.current?.setView(view?.center??GUWAHATI,zoom)}/>
                 <section className="pane-section"><div className="section-heading">

@@ -6,7 +6,7 @@ import {
 } from "@atlas/style-core";
 import {Route,Type,ZoomIn,RotateCcw} from "lucide-react";
 
-type Props={settings:AdvancedStyleSettings;onChange:(settings:AdvancedStyleSettings)=>void;baseStyle:unknown;presetColor?:string};
+type Props={settings:AdvancedStyleSettings;onChange:(settings:AdvancedStyleSettings)=>void;baseStyle:unknown;presetColor?:string;onReset?:()=>void};
 const roadNames:Record<RoadTier,string>={
   motorway:"Motorways & expressways",primary:"Primary roads",
   secondary:"Secondary & tertiary roads",local:"Local & residential",
@@ -76,7 +76,7 @@ function RangeField({name,range,onChange}:{name:string,range:ZoomRange,onChange:
       value={range.max??""} onChange={e=>write("max",e.target.value)}/></label>
   </div>;
 }
-export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#7194c5"}:Props){
+export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#7194c5",onReset}:Props){
   const styleLayers=useMemo(()=>{
     if(!baseStyle||typeof baseStyle!=="object")return [];
     const layers=(baseStyle as {layers?:unknown}).layers;
@@ -87,8 +87,13 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#719
     ...settings,roads:{...settings.roads,[tier]:{...settings.roads[tier],...changes}}
   });
   return <section className="pane-section atlas-advanced-panel" aria-label="Advanced road styling">
-    <div className="section-heading"><div className="section-label"><Route size={14}/> ADVANCED ROAD STYLING</div></div>
-    <p className="atlas-detail-intro">Colours, thickness, casing, dash pattern and visibility for each road class. Existing road-opacity sliders remain under Map Detail Controls.</p>
+    <div className="section-heading">
+      <div className="section-label"><Route size={14}/> ADVANCED ROAD STYLING</div>
+      {onReset&&<button className="quiet-button atlas-detail-reset" type="button" onClick={onReset}>
+        <RotateCcw size={13}/> Reset advanced design to preset
+      </button>}
+    </div>
+    <p className="atlas-detail-intro">Each theme now has a designed road hierarchy. Fine-tune colour, width, casing, dash pattern and visibility. Untouched values follow the current preset.</p>
     {ROAD_TIERS.map(tier=><details className="atlas-design-fold" key={tier} open={tier==="primary"||tier==="secondary"?true:undefined}>
       <summary>{roadNames[tier]}<span>Style</span></summary>
       <div className="atlas-design-grid">
@@ -123,7 +128,7 @@ export function TypographyPanel({settings,onChange,baseStyle,presetColor="#8495a
   });
   return <section className="pane-section atlas-advanced-panel" aria-label="Typography studio">
     <div className="section-heading"><div className="section-label"><Type size={14}/> TYPOGRAPHY STUDIO</div></div>
-    <p className="atlas-detail-intro">Adjust map label hierarchy independently. Sizes scale the provider's existing zoom-aware typography. Font choices are limited to stacks already referenced by this map's source style.</p>
+    <p className="atlas-detail-intro">The chosen theme now sets text size, colour, spacing and zoom hierarchy. You can override each value; font stacks remain restricted to those supported by this map.</p>
     {LABEL_ROLES.map(role=><details className="atlas-design-fold" key={role} open={role==="city"||role==="road"?true:undefined}>
       <summary>{labelNames[role]}<span>Type</span></summary>
       <div className="atlas-design-grid">
@@ -165,7 +170,7 @@ export function ZoomDetailPanel({settings,onChange,currentZoom,onPreviewZoom}:Om
   return <section className="pane-section atlas-advanced-panel" aria-label="Zoom-dependent map detail">
     <div className="section-heading"><div className="section-label"><ZoomIn size={14}/> ZOOM-DEPENDENT DETAIL</div>
       <button type="button" className="quiet-button" onClick={reset}><RotateCcw size={13}/> Reset zoom rules</button></div>
-    <p className="atlas-detail-intro">Set when each category first appears or disappears as you zoom. “Auto” follows the underlying map provider's zoom rules.</p>
+    <p className="atlas-detail-intro">Each preset sets its own zoom-dependent detail. Adjust when roads, labels and geographic features appear; “Auto” inherits the map provider.</p>
     <div className="atlas-zoom-preview" role="group" aria-label="Zoom level preview">
       <span>Preview zoom · currently z{currentZoom.toFixed(1)}</span>
       {[5,9,13,16,19].map(z=><button type="button" key={z}

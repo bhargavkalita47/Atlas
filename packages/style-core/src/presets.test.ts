@@ -70,7 +70,7 @@ describe("Atlas preset catalog",()=>{
     doc.layers["road-primary"]={paint:{"line-color":"#123456"}};
     const second=createAtlasPresetDocument("pastel-city",inspectStyleLayers(base()));
     expect(second.groups.water?.color).not.toBe("#000000");
-    expect(second.layers["road-primary"]?.paint?.["line-color"]).toBeUndefined();
+    expect(second.layers["road-primary"]?.paint?.["line-color"]).not.toBe("#123456");
   });
   it("rejects unknown IDs instead of returning a wrong preset",()=>{
     expect(()=>getAtlasPreset("not-real")).toThrow("Unknown Atlas style preset");
