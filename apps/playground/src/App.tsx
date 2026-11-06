@@ -13,11 +13,12 @@ import {
 } from "@atlas/core";
 import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
 import {
-  ATLAS_STYLE_PRESETS,STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
-  getAtlasPresetCoreColors,stringifyAtlasStyleDocument,type AtlasStyleDocument,
-  type StyleLayerDescriptor
+  STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
+  getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
+  type AtlasStyleDocument,type StyleLayerDescriptor
 } from "@atlas/style-core";
 import {PresetGallery} from "./studio/PresetGallery";
+import {PaletteEditor} from "./studio/PaletteEditor";
 import {LayerEditor} from "./studio/LayerEditor";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
@@ -126,6 +127,8 @@ export default function App(){
   const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...MINIMAL_THEME});
   const [studioDocument,setStudioDocument]=useState<AtlasStyleDocument>(()=>createAtlasPresetDocument(INITIAL_PRESET));
   const [activePresetId,setActivePresetId]=useState<string|null>(INITIAL_PRESET);
+  const [basePresetId,setBasePresetId]=useState<string>(INITIAL_PRESET);
+  const [customPalette,setCustomPalette]=useState<string[]|null>(null);
   const [studioLayers,setStudioLayers]=useState<StyleLayerDescriptor[]>([]);
   const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
   const [baseId,setBaseId]=useState("standard");
@@ -157,20 +160,51 @@ export default function App(){
   const alert=(text:string)=>{setNotification(text);log(text);};
   useEffect(()=>{localStorage.setItem("atlas.lab.markers",JSON.stringify(markers));},[markers]);
   const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
+  const colorsForDocument=(document:AtlasStyleDocument):VectorTheme=>{
+    const fallback=getAtlasPresetCoreColors(basePresetId);
+    return Object.fromEntries(
+      (["land","water","parks","roads","buildings","labels"] as const)
+        .map(key=>[key,document.groups[key]?.color??fallback[key]])
+    ) as VectorTheme;
+  };
   const choosePreset=(id:string)=>{
     const preset=getAtlasPreset(id);
+    const document=customPalette
+      ?reskinAtlasPreset(id,customPalette,vectorStyle===preset.baseStyle?studioLayers:[])
+      :createAtlasPresetDocument(id,vectorStyle===preset.baseStyle?studioLayers:[]);
     setActivePresetId(id);
+    setBasePresetId(id);
     setStudioWarnings([]);
-    setVectorTheme(getAtlasPresetCoreColors(id));
-    setStudioDocument(createAtlasPresetDocument(id,vectorStyle===preset.baseStyle?studioLayers:[]));
+    setVectorTheme(colorsForDocument(document));
+    setStudioDocument(document);
     if(vectorStyle!==preset.baseStyle)setStudioLayers([]);
     setVectorStyle(preset.baseStyle);
-    log("Atlas preset: "+preset.name);
+    log("Atlas preset: "+preset.name+(customPalette?" · custom palette":""));
+  };
+  const applyCustomPalette=(colors:string[]|null)=>{
+    const preset=getAtlasPreset(basePresetId);
+    const base=colors
+      ?reskinAtlasPreset(basePresetId,colors,vectorStyle===preset.baseStyle?studioLayers:[])
+      :createAtlasPresetDocument(basePresetId,vectorStyle===preset.baseStyle?studioLayers:[]);
+    // Direct overrides from the layer inspector remain editable when the
+    // palette changes; restoring the preset clears those overrides.
+    if(colors && studioDocument.baseStyle===preset.baseStyle){
+      base.layers={...base.layers,...studioDocument.layers};
+    }
+    setCustomPalette(colors);
+    setActivePresetId(basePresetId);
+    setStudioWarnings([]);
+    setVectorTheme(colorsForDocument(base));
+    setStudioDocument(base);
+    if(vectorStyle!==preset.baseStyle)setStudioLayers([]);
+    setVectorStyle(preset.baseStyle);
+    log(colors?"Applied "+colors.length+"-colour palette to "+preset.name:
+      "Restored "+preset.name+" original palette");
   };
   const editStudioDocument=(document:AtlasStyleDocument)=>{
     setActivePresetId(null);
     setStudioDocument({...document,id:"custom-theme",name:"Custom theme",
-      metadata:{...document.metadata,preset:"custom",derivedFrom:activePresetId??"custom"}});
+      metadata:{...document.metadata,preset:"custom",derivedFrom:basePresetId}});
   };
   const switchTab=(name:Tab)=>{setTab(name);setMobileMenu(false);};
   const selectMode=(next:Mode)=>{setMode(next);setDraft([]);log("Tool: "+next);};
@@ -418,13 +452,16 @@ export default function App(){
                     key={t.id} className={"basemap-card basemap-"+(t.id==="dark"?"dark":"light")+(vectorStyle===t.id?" selected":"")}
                     onPointerEnter={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
                     onFocus={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
-                    onClick={()=>{setActivePresetId(null);setVectorStyle(t.id);setStudioLayers([]);log("Vector style: "+t.name);}}>
+                    onClick={()=>{setActivePresetId(null);setCustomPalette(null);setVectorStyle(t.id);setStudioLayers([]);log("Vector style: "+t.name);}}>
                     <span className="basemap-preview"><span className="road one"/><span className="road two"/><span className="water"/></span>
                     <strong>{t.name}</strong><small>{t.tag}</small>{vectorStyle===t.id&&<Check size={16} className="basemap-check"/>}
                   </button>)}</div>
                   <div className="muted-tip">Hosted by OpenFreeMap, an open-source OSM-derived tile system. No account or key. Self-hosting can be configured later.</div>
                 </section>
-                <PresetGallery activePresetId={activePresetId} onApply={choosePreset}/>
+                <PresetGallery activePresetId={activePresetId} basePresetId={basePresetId}
+                  palette={customPalette} onApply={choosePreset}/>
+                <PaletteEditor presetId={basePresetId} colors={customPalette}
+                  onChange={applyCustomPalette}/>
                 <section className="pane-section"><div className="section-heading">
                     <div className="section-label">EDIT THEME COLOURS</div>
                     <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>
@@ -540,7 +577,9 @@ export default function App(){
                   // A preset's rules depend on the actual layers in the newly
                   // loaded provider style, never stale IDs from another style.
                   if(activePresetId&&getAtlasPreset(activePresetId).baseStyle===vectorStyle){
-                    return createAtlasPresetDocument(activePresetId,layers);
+                    return customPalette
+                      ?reskinAtlasPreset(activePresetId,customPalette,layers)
+                      :createAtlasPresetDocument(activePresetId,layers);
                   }
                   return {...old,baseStyle:vectorStyle,bindings:bindingsFor(layers),
                     layers:old.baseStyle===vectorStyle?old.layers:{}};

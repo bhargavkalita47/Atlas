@@ -257,7 +257,7 @@ test("preset gallery applies, customizes and resets themes without a new canvas"
   await expect(page.locator('input[aria-label="Land / background"]')).toHaveValue("#f5f0e4");
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
   await page.locator('input[aria-label="Rivers and water"]').fill("#123456");
-  await expect(page.getByText("Custom theme")).toBeVisible();
+  await expect(page.getByText("Custom theme",{exact:true})).toBeVisible();
   await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveAttribute("aria-pressed","false");
   await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
   await expect(page.locator('input[aria-label="Rivers and water"]')).toHaveValue("#bfd9dd");
@@ -269,4 +269,52 @@ test("preset gallery applies, customizes and resets themes without a new canvas"
   );
   expect(sameCanvas).toBe(true);
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});
+
+test("palette generator reskins any selected preset, retains camera and restores base",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.evaluate(()=>{
+    (window as Window & {atlasPaletteTestCanvas?:Element|null}).atlasPaletteTestCanvas=document.querySelector(".maplibregl-canvas");
+  });
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.getByText(/81 themes/)).toBeVisible();
+  await page.getByRole("button",{name:"Enable custom palette"}).click();
+  await expect(page.getByRole("group",{name:"Custom palette swatches"}).locator('input[type="color"]')).toHaveCount(5);
+  await page.locator('input[aria-label="Palette colour 2"]').fill("#1469BC");
+  await expect(page.getByText("10 outputs")).toBeVisible();
+  const previous=await page.locator('input[aria-label="Land / background"]').inputValue();
+  await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator('input[aria-label="Palette colour 2"]')).toHaveValue("#1469bc");
+  const after=await page.locator('input[aria-label="Land / background"]').inputValue();
+  expect(after).not.toBe(previous);
+  await page.getByRole("button",{name:"Restore preset colours"}).click();
+  await expect(page.getByRole("button",{name:"Enable custom palette"})).toBeVisible();
+  await expect(page.locator('input[aria-label="Land / background"]')).toHaveValue("#f5f0e4");
+  const same=await page.evaluate(()=>
+    document.querySelector(".maplibregl-canvas")===(window as Window & {atlasPaletteTestCanvas?:Element|null}).atlasPaletteTestCanvas
+  );
+  expect(same).toBe(true);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});
+
+test("preset catalog is searchable and paste accepts 4-6 colours",async({page})=>{
+  await page.goto("/");
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("button",{name:"Futuristic"}).click();
+  await expect(page.getByRole("button",{name:"Apply Synthwave preset"})).toBeVisible();
+  await page.getByRole("button",{name:"All",{exact:true}}).click();
+  await page.locator('input[aria-label="Search map presets"]').fill("sahara");
+  await expect(page.getByRole("button",{name:"Apply Sahara Trek preset"})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Apply Paper & Ink preset"})).toHaveCount(0);
+  await page.locator('input[aria-label="Search map presets"]').fill("");
+  await page.locator('textarea[aria-label="Paste palette colours"]').fill("#112233, #AABBCC, #448855, #F5DCA4");
+  await page.getByRole("button",{name:"Apply 4–6 colours"}).click();
+  await expect(page.getByRole("group",{name:"Custom palette swatches"}).locator('input[type="color"]')).toHaveCount(4);
+  await page.getByRole("button",{name:/Add colour/}).click();
+  await expect(page.getByRole("group",{name:"Custom palette swatches"}).locator('input[type="color"]')).toHaveCount(5);
+  await page.getByRole("button",{name:/Add colour/}).click();
+  await expect(page.getByRole("group",{name:"Custom palette swatches"}).locator('input[type="color"]')).toHaveCount(6);
+  await expect(page.getByRole("button",{name:/Add colour/})).toBeDisabled();
 });
