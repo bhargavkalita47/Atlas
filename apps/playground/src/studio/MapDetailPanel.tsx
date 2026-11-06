@@ -9,7 +9,10 @@ import {RotateCcw,SlidersHorizontal} from "lucide-react";
 type Props={
   layers:readonly StyleLayerDescriptor[];
   settings:MapDetailSettings;
+  presetSettings:MapDetailSettings;
+  presetName:string;
   onChange:(next:MapDetailSettings)=>void;
+  onReset:()=>void;
 };
 const tiers:Record<RoadTier,{name:string;examples:string}>={
   motorway:{name:"Motorways & highways",examples:"Motorway, trunk and expressway"},
@@ -37,7 +40,7 @@ const matchDensity=(value:MapDetailSettings):DetailDensity|null=>{
   const key=JSON.stringify(value);
   return densityNames.find(item=>JSON.stringify(createMapDetailSettings(item.id))===key)?.id??null;
 };
-export function MapDetailPanel({layers,settings,onChange}:Props){
+export function MapDetailPanel({layers,settings,presetSettings,presetName,onChange,onReset}:Props){
   const density=matchDensity(settings);
   const coverage=useMemo(()=>{
     const roads=layers.filter(l=>l.suggestedGroup==="roads"&&l.type==="line");
@@ -54,9 +57,14 @@ export function MapDetailPanel({layers,settings,onChange}:Props){
     <div className="section-heading">
       <div className="section-label"><SlidersHorizontal size={13}/> MAP DETAIL CONTROLS</div>
       <button type="button" className="quiet-button atlas-detail-reset"
-        onClick={()=>onChange(createMapDetailSettings())}><RotateCcw size={13}/> Reset details</button>
+        onClick={onReset}><RotateCcw size={13}/> Reset to preset</button>
     </div>
-    <p className="atlas-detail-intro">Choose exactly what appears on the map. Adjust road types independently, then show, hide or fade other features. Changes apply to your active preset without reloading tiles.</p>
+    <p className="atlas-detail-intro">Each preset now has its own road hierarchy and detail design. Adjust anything below without reloading the map.</p>
+    <div className="atlas-detail-profile" role="status">
+      <span>Preset detail design</span>
+      <strong>{presetName}</strong>
+      {JSON.stringify(settings)===JSON.stringify(presetSettings)?" · original":" · customized"}
+    </div>
     <div className="atlas-density-options" role="group" aria-label="Map detail density">
       {densityNames.map(item=><button type="button" key={item.id}
         aria-pressed={density===item.id}
@@ -106,7 +114,7 @@ export function MapDetailPanel({layers,settings,onChange}:Props){
     <p className="atlas-detail-footnote">
       Road classes depend on the tile provider. Atlas targets specifically named road layers when available,
       and uses per-feature road classes in shared layers. Features not present in this base style cannot be shown.
-      Your settings remain active when choosing another Atlas preset.
+      Your manual changes carry over when switching presets; unedited controls follow the next preset.
     </p>
   </section>;
 }

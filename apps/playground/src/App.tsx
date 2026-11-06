@@ -15,8 +15,8 @@ import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
 import {
   STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
   getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
-  applyMapDetailControls,createMapDetailSettings,
-  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailSettings
+  applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
+  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides
 } from "@atlas/style-core";
 import {PresetGallery} from "./studio/PresetGallery";
 import {PaletteEditor} from "./studio/PaletteEditor";
@@ -134,7 +134,7 @@ export default function App(){
   const [customPalette,setCustomPalette]=useState<string[]|null>(null);
   const [studioLayers,setStudioLayers]=useState<StyleLayerDescriptor[]>([]);
   const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
-  const [detailSettings,setDetailSettings]=useState<MapDetailSettings>(()=>createMapDetailSettings());
+  const [detailOverrides,setDetailOverrides]=useState<MapDetailOverrides>(()=>({roads:{},features:{}}));
   const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
   const studioCache=useRef(new StudioPresetCache());
   const [preparedPresets,setPreparedPresets]=useState(0);
@@ -173,6 +173,9 @@ export default function App(){
     for(const url of Object.values(KEYLESS_VECTOR_STYLES))
       preloadVectorStyle(url,"low");
   },[]);
+  const presetDetailSettings=useMemo(()=>getAtlasPresetDetailSettings(basePresetId),[basePresetId]);
+  const detailSettings=useMemo(()=>mergeMapDetailOverrides(presetDetailSettings,detailOverrides),
+    [presetDetailSettings,detailOverrides]);
   const effectiveStyleDocument=useMemo(()=>applyMapDetailControls(
     studioDocument,studioLayers,detailSettings,mapBaseStyle
   ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
@@ -481,7 +484,9 @@ export default function App(){
                 <PaletteEditor presetId={basePresetId} colors={customPalette}
                   onChange={applyCustomPalette}/>
                 <MapDetailPanel layers={studioLayers} settings={detailSettings}
-                  onChange={setDetailSettings}/>
+                  presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
+                  onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
+                  onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
                 <section className="pane-section"><div className="section-heading">
                     <div className="section-label">EDIT THEME COLOURS</div>
                     <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>

@@ -20,6 +20,40 @@ export type MapDetailSettings={
   features:Record<DetailFeature,DetailLevel>;
 };
 export type DetailDensity="full"|"balanced"|"quiet"|"essential";
+/**
+ * Sparse manual detail edits survive preset changes. Unedited controls
+ * always inherit the newly chosen preset's cartographic profile.
+ */
+export type MapDetailOverrides={
+  roads:Partial<Record<RoadTier,number>>;
+  features:Partial<Record<DetailFeature,Partial<DetailLevel>>>;
+};
+export function mergeMapDetailOverrides(
+  baseline:MapDetailSettings,overrides:MapDetailOverrides
+):MapDetailSettings{
+  const result=JSON.parse(JSON.stringify(baseline)) as MapDetailSettings;
+  Object.assign(result.roads,overrides.roads);
+  for(const key of DETAIL_FEATURES)
+    Object.assign(result.features[key],overrides.features[key]??{});
+  return result;
+}
+export function deriveMapDetailOverrides(
+  baseline:MapDetailSettings,desired:MapDetailSettings
+):MapDetailOverrides{
+  const result:MapDetailOverrides={roads:{},features:{}};
+  for(const tier of ROAD_TIERS)
+    if(desired.roads[tier]!==baseline.roads[tier])
+      result.roads[tier]=desired.roads[tier];
+  for(const key of DETAIL_FEATURES){
+    const old=baseline.features[key],next=desired.features[key];
+    const diff:Partial<DetailLevel>={};
+    if(old.visible!==next.visible)diff.visible=next.visible;
+    if(old.opacity!==next.opacity)diff.opacity=next.opacity;
+    if(Object.keys(diff).length)result.features[key]=diff;
+  }
+  return result;
+}
+
 export function createMapDetailSettings(density:DetailDensity="full"):MapDetailSettings{
   const roads=Object.fromEntries(ROAD_TIERS.map(key=>[key,100])) as Record<RoadTier,number>;
   const features=Object.fromEntries(DETAIL_FEATURES.map(key=>[key,{visible:null,opacity:100}])) as Record<DetailFeature,DetailLevel>;
