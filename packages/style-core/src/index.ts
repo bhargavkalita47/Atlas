@@ -308,3 +308,6 @@ export type {AtlasPresetDefinition,AtlasPresetId} from "./presets";
 
 export {PALETTE_MIN_COLORS,PALETTE_MAX_COLORS,normalizeHexColor,validatePaletteSeeds,parseHexPalette,deriveSemanticPalette,mixPaletteColors,contrastRatio,relativeLuminance,reskinAtlasPreset} from "./palette";
 export type {SemanticPalette,PaletteSlots} from "./palette";
+
+export {ROAD_TIERS,DETAIL_FEATURES,createMapDetailSettings,classifyRoadLayer,applyMapDetailControls} from "./detailControls";
+export type {RoadTier,DetailFeature,DetailLevel,DetailDensity,MapDetailSettings} from "./detailControls";
