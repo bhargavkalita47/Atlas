@@ -302,3 +302,6 @@ export function stringifyAtlasStyleDocument(document:AtlasStyleDocument):string{
     value;
   return JSON.stringify(canonical(document as unknown as JsonValue),null,2);
 }
+
+export {ATLAS_STYLE_PRESETS,getAtlasPreset,getAtlasPresetCoreColors,createAtlasPresetDocument} from "./presets";
+export type {AtlasPresetDefinition,AtlasPresetId} from "./presets";
