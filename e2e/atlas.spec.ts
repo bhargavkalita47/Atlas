@@ -434,6 +434,7 @@ test("Atlas Studio edits roads, labels and zoom rules without remounting the map
   await page.locator('input[aria-label="Cities & major places text color"]').fill("#aabbcc");
   await expect(page.locator('section[aria-label="Zoom-dependent map detail"]')).toBeVisible();
   await page.locator('input[aria-label="Secondary & tertiary roads min zoom"]').fill("12");
+  await page.locator('section[aria-label="Zoom-dependent map detail"] details').nth(2).locator("summary").click();
   await page.locator('input[aria-label="Buildings min zoom"]').fill("14");
   await page.getByRole("button",{name:"Preview zoom 9"}).click();
   await expect.poll(async()=>Number((await page.locator(".footer-pill").textContent())?.replace(/^Z/,""))).toBeCloseTo(9,0);
