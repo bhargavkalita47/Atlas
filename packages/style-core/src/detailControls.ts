@@ -151,6 +151,7 @@ export function applyMapDetailControls(
       const direct=classifyRoadLayer(layer);
       const hasChange=ROAD_TIERS.some(tier=>settings.roads[tier]!==100);
       if(!hasChange)continue;
+      if(direct&&settings.roads[direct]===100)continue;
       const baseOpacity=underlyingOpacity(originals.get(layer.id),next,layer,"line-opacity");
       if(direct){
         override.paint!["line-opacity"]=Number((baseOpacity*safePercent(settings.roads[direct])).toFixed(4));

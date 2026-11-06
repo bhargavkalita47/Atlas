@@ -33,7 +33,7 @@ export class StudioPresetCache {
     if(this.inventoryKey===key)return false;
     const originals=new Map<string,AtlasStyleDocument>();
     for(const preset of ATLAS_STYLE_PRESETS){
-      const doc=createAtlasPresetDocument(preset.id,layers);
+      const doc=createAtlasPresetDocument(preset.id,layers,{includeDetails:false});
       doc.baseStyle=baseId;
       doc.metadata={...doc.metadata,
         authoredOnBaseStyle:baseId,
@@ -57,8 +57,8 @@ export class StudioPresetCache {
   get(presetId:string,palette:readonly string[]|null=null):AtlasStyleDocument{
     if(!this.ready){
       const fresh=palette
-        ?reskinAtlasPreset(presetId,palette,this.layers)
-        :createAtlasPresetDocument(presetId,this.layers);
+        ?reskinAtlasPreset(presetId,palette,this.layers,{includeDetails:false})
+        :createAtlasPresetDocument(presetId,this.layers,{includeDetails:false});
       fresh.baseStyle=this.baseId;
       return fresh;
     }
@@ -70,7 +70,7 @@ export class StudioPresetCache {
     const key=JSON.stringify([presetId,palette]);
     let generated=this.palettes.get(key);
     if(!generated){
-      generated=reskinAtlasPreset(presetId,palette,this.layers);
+      generated=reskinAtlasPreset(presetId,palette,this.layers,{includeDetails:false});
       generated.baseStyle=this.baseId;
       generated.metadata={...generated.metadata,
         authoredOnBaseStyle:this.baseId,

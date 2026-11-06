@@ -2,6 +2,8 @@ import {
   type AtlasStyleDocument,type StyleGroup,type StyleLayerDescriptor,
   createEmptyStyleDocument,validateStyleDocument
 } from "./index";
+import {applyMapDetailControls} from "./detailControls";
+import {getAtlasPresetDetailSettings,ATLAS_DETAIL_PROFILE_VERSION} from "./presetDetails";
 
 /**
  * Curated, zero-key Atlas presets built exclusively on existing v2
@@ -226,9 +228,16 @@ function majorRoad(layer:StyleLayerDescriptor):boolean{
   return /(?:^|[-_])(?:motorway|trunk|primary|highway)(?:$|[-_])/.test(layer.id.toLowerCase()) &&
     !/(?:casing|outline|bridge|tunnel|shield|label|symbol)/.test(layer.id.toLowerCase());
 }
+export type AtlasPresetDocumentOptions={
+  /** Exclude the curated detail defaults for a custom Studio overlay. */
+  includeDetails?:boolean;
+  /** When available, retain a provider's original opacity expressions. */
+  baseStyle?:unknown;
+};
 export function createAtlasPresetDocument(
   id:string,
-  layers:readonly StyleLayerDescriptor[]=[]
+  layers:readonly StyleLayerDescriptor[]=[],
+  options:AtlasPresetDocumentOptions={}
 ):AtlasStyleDocument{
   const preset=getAtlasPreset(id);
   const doc=createEmptyStyleDocument(preset.id,preset.baseStyle,preset.name);
@@ -253,12 +262,27 @@ export function createAtlasPresetDocument(
         paint:{"line-width":["interpolate",["linear"],["zoom"],5,0.6,10,1.4,15,3.5,19,8]}
       };
     }
+    // Dark-map glyphs are intentionally crisp: no outline and no blur.
+    // Neutralize source provider halos for text-bearing symbols, including
+    // any labels whose heuristic semantic group is unknown.
+    if(preset.baseStyle==="dark"&&layer.type==="symbol"){
+      const before=doc.layers[layer.id]??{};
+      doc.layers[layer.id]={...before,paint:{...before.paint,
+        "text-halo-width":0,"text-halo-blur":0,
+        "text-halo-color":"rgba(0, 0, 0, 0)"
+      }};
+    }
   }
   doc.metadata={
-    preset:id,bindingMode:"suggested-review-required",
+    preset:id,presetDetailVersion:ATLAS_DETAIL_PROFILE_VERSION,
+    bindingMode:"suggested-review-required",
     note:"Features and exact layer matches depend on the provider's actual style."
   };
   const invalid=validateStyleDocument(doc).filter(d=>d.severity==="error");
   if(invalid.length)throw new Error("Invalid builtin preset: "+id);
-  return doc;
+  // Built-in preset documents are complete and portable by default.
+  // Atlas Lab uses includeDetails:false, then applies the selected profile
+  // and any manual sparse overrides once against its live provider base.
+  return options.includeDetails===false?doc:
+    applyMapDetailControls(doc,layers,getAtlasPresetDetailSettings(id),options.baseStyle);
 }

@@ -59,7 +59,7 @@ describe("Atlas preset catalog",()=>{
   it("uses zoom-aware widths selectively for prominent roads",()=>{
     const doc=createAtlasPresetDocument("blueprint",inspectStyleLayers(base()));
     expect(doc.layers["road-primary"]?.paint?.["line-width"]).toEqual(["interpolate",["linear"],["zoom"],5,0.6,10,1.4,15,3.5,19,8]);
-    expect(doc.layers["road-residential"]).toBeUndefined();
+    expect(doc.layers["road-residential"]?.paint?.["line-opacity"]).toBeDefined();
     const compiled=compileAtlasStyle(base(),doc);
     const layers=compiled.style.layers as unknown as Array<{id:string,paint?:Record<string,unknown>}>;
     expect(layers.find(l=>l.id==="road-primary")?.paint?.["line-width"]).toEqual(doc.layers["road-primary"]?.paint?.["line-width"]);
@@ -70,7 +70,7 @@ describe("Atlas preset catalog",()=>{
     doc.layers["road-primary"]={paint:{"line-color":"#123456"}};
     const second=createAtlasPresetDocument("pastel-city",inspectStyleLayers(base()));
     expect(second.groups.water?.color).not.toBe("#000000");
-    expect(second.layers["road-primary"]).toBeUndefined();
+    expect(second.layers["road-primary"]?.paint?.["line-color"]).toBeUndefined();
   });
   it("rejects unknown IDs instead of returning a wrong preset",()=>{
     expect(()=>getAtlasPreset("not-real")).toThrow("Unknown Atlas style preset");

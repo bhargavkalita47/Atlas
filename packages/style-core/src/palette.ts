@@ -1,6 +1,6 @@
 import {
   createAtlasPresetDocument,getAtlasPreset,
-  type AtlasPresetDefinition
+  type AtlasPresetDefinition,type AtlasPresetDocumentOptions
 } from "./presets";
 import type {AtlasStyleDocument,StyleGroup,StyleLayerDescriptor} from "./index";
 
@@ -146,9 +146,10 @@ export function reskinAtlasPreset(
   presetId:string,
   input:readonly string[],
   layers:readonly StyleLayerDescriptor[]=[],
+  options:AtlasPresetDocumentOptions={}
 ):AtlasStyleDocument {
   const colors=validatePaletteSeeds(input);
-  const document=createAtlasPresetDocument(presetId,layers);
+  const document=createAtlasPresetDocument(presetId,layers,options);
   const roles=deriveSemanticPalette(presetId,colors);
   for(const [role,color] of Object.entries(roles))
     document.groups[role as StyleGroup]={...document.groups[role as StyleGroup],color};
