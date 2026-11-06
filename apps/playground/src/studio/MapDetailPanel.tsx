@@ -84,17 +84,20 @@ export function MapDetailPanel({layers,settings,onChange}:Props){
       <div className="atlas-detail-top">
         <span><strong className="atlas-detail-label">{features[key].name}</strong>
           <small className="atlas-detail-subline">{features[key].note}</small></span>
-        <label className="atlas-detail-toggle">
-          <input type="checkbox" aria-label={"Show "+features[key].name}
-            checked={settings.features[key].visible}
-            onChange={event=>setFeature(key,{visible:event.target.checked})}/>
-          Show
-        </label>
+        <select className="atlas-detail-visibility" aria-label={features[key].name+" visibility"}
+          value={settings.features[key].visible===null?"inherit":settings.features[key].visible?"show":"hide"}
+          onChange={event=>setFeature(key,{
+            visible:event.target.value==="inherit"?null:event.target.value==="show"
+          })}>
+          <option value="inherit">Preset</option>
+          <option value="show">Show</option>
+          <option value="hide">Hide</option>
+        </select>
       </div>
       <div className="atlas-detail-top">
         <input className="atlas-detail-slider" type="range"
           aria-label={features[key].name+" opacity"}
-          min="0" max="100" step="5" disabled={!settings.features[key].visible}
+          min="0" max="100" step="5" disabled={settings.features[key].visible===false}
           value={settings.features[key].opacity}
           onChange={event=>setFeature(key,{opacity:Number(event.target.value)})}/>
         <span className="atlas-detail-value">{settings.features[key].opacity}%</span>

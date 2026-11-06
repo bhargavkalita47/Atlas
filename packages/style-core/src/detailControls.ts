@@ -13,7 +13,8 @@ export const DETAIL_FEATURES=[
   "buildings","water","parks","placeLabels","roadLabels","poi","transit","boundaries","terrain"
 ] as const;
 export type DetailFeature=typeof DETAIL_FEATURES[number];
-export type DetailLevel={visible:boolean;opacity:number};
+/** null inherits preset visibility; true/false explicitly show/hide. */
+export type DetailLevel={visible:boolean|null;opacity:number};
 export type MapDetailSettings={
   roads:Record<RoadTier,number>;
   features:Record<DetailFeature,DetailLevel>;
@@ -21,28 +22,27 @@ export type MapDetailSettings={
 export type DetailDensity="full"|"balanced"|"quiet"|"essential";
 export function createMapDetailSettings(density:DetailDensity="full"):MapDetailSettings{
   const roads=Object.fromEntries(ROAD_TIERS.map(key=>[key,100])) as Record<RoadTier,number>;
-  const features=Object.fromEntries(DETAIL_FEATURES.map(key=>[key,{visible:true,opacity:100}])) as Record<DetailFeature,DetailLevel>;
+  const features=Object.fromEntries(DETAIL_FEATURES.map(key=>[key,{visible:null,opacity:100}])) as Record<DetailFeature,DetailLevel>;
   if(density==="balanced"){
     roads.local=80;roads.paths=65;
-    features.poi={visible:true,opacity:65};
-    features.buildings={visible:true,opacity:80};
-    features.boundaries={visible:true,opacity:65};
+    features.poi={visible:null,opacity:65};
+    features.buildings={visible:null,opacity:80};
+    features.boundaries={visible:null,opacity:65};
   }else if(density==="quiet"){
     roads.secondary=75;roads.local=35;roads.paths=15;
     features.poi={visible:false,opacity:100};
-    features.buildings={visible:true,opacity:35};
-    features.roadLabels={visible:true,opacity:70};
+    features.buildings={visible:null,opacity:35};
+    features.roadLabels={visible:null,opacity:70};
     features.boundaries={visible:false,opacity:100};
     features.transit={visible:false,opacity:100};
   }else if(density==="essential"){
     roads.secondary=45;roads.local=0;roads.paths=0;
     for(const key of ["poi","buildings","roadLabels","boundaries","transit","terrain"] as const)
       features[key]={visible:false,opacity:100};
-    features.parks={visible:true,opacity:60};
+    features.parks={visible:null,opacity:60};
   }
   return {roads,features};
 }
-const hex=(value:unknown):value is string=>typeof value==="string"&&/^#[0-9a-f]{6}$/i.test(value);
 function safePercent(n:number):number{
   if(!Number.isFinite(n))throw new Error("Opacity must be a finite number.");
   return Math.min(100,Math.max(0,n))/100;
@@ -161,8 +161,8 @@ export function applyMapDetailControls(
     }else if(feature){
       const level=settings.features[feature];
       if(!level)continue;
-      if(!level.visible){
-        override.layout!.visibility="none";
+      if(level.visible!==null){
+        override.layout!.visibility=level.visible?"visible":"none";
         changed++;
       }
       if(level.opacity!==100){

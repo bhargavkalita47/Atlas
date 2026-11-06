@@ -53,7 +53,7 @@ describe("Atlas map density / road hierarchy",()=>{
     s.features.buildings={visible:false,opacity:40};
     s.features.poi={visible:false,opacity:100};
     s.features.roadLabels={visible:false,opacity:100};
-    s.features.water={visible:true,opacity:50};
+    s.features.water={visible:null,opacity:50};
     const r=compiled(s);
     expect(layer(r.style,"building-fill").layout?.visibility).toBe("none");
     expect(layer(r.style,"building-fill").paint?.["fill-opacity"]).toBe(.32);
@@ -63,6 +63,20 @@ describe("Atlas map density / road hierarchy",()=>{
     expect(layer(r.style,"lake").paint?.["fill-opacity"]).toBe(.5);
     expect(layer(r.style,"background").layout?.visibility).toBeUndefined();
     expect(validateStyleDocument(r.doc)).toEqual([]);
+  });
+  it("can force a preset-hidden feature visible, or inherit its original visibility",()=>{
+    const style=base(),layers=inspectStyleLayers(style);
+    const doc=createEmptyStyleDocument("test","positron");
+    doc.groups.poi={visible:false};doc.bindings.poi=["poi-label"];
+    const controls=createMapDetailSettings();
+    const inherited=compileAtlasStyle(style,applyMapDetailControls(doc,layers,controls,style)).style;
+    expect(layer(inherited,"poi-label").layout?.visibility).toBe("none");
+    controls.features.poi={visible:true,opacity:100};
+    const shown=compileAtlasStyle(style,applyMapDetailControls(doc,layers,controls,style)).style;
+    expect(layer(shown,"poi-label").layout?.visibility).toBe("visible");
+    controls.features.poi={visible:false,opacity:100};
+    const hidden=compileAtlasStyle(style,applyMapDetailControls(doc,layers,controls,style)).style;
+    expect(layer(hidden,"poi-label").layout?.visibility).toBe("none");
   });
   it("preserves original documents and restores the original style when reset",()=>{
     const style=base(),original=JSON.stringify(style);

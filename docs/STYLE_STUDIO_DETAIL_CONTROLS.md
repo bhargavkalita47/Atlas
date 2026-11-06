@@ -6,7 +6,7 @@ Atlas Lab offers **Map Detail Controls** beneath the preset/palette editors.
 - Five independently configurable road opacity controls:
   motorways/trunk, primary, secondary/tertiary, local/residential,
   and service/paths.
-- Independently show/hide and fade buildings, water, parks, place labels,
+- Independently inherit preset visibility, force show/hide, and fade buildings, water, parks, place labels,
   road labels, POIs, transit, administrative boundaries and terrain.
 - The user can reset all map detail controls without resetting their colours.
 - Details persist when switching presets. The resulting style overrides
