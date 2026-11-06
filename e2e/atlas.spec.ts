@@ -371,10 +371,36 @@ test("map detail panel supports per-road opacity and feature visibility without 
   await expect(page.getByRole("combobox",{name:"Buildings visibility"})).toHaveValue("hide");
   await page.getByRole("button",{name:"Essential",exact:true}).click();
   await expect(page.locator('input[aria-label="Residential & local roads opacity"]')).toHaveValue("0");
-  await page.getByRole("button",{name:"Reset details"}).click();
-  await expect(page.locator('input[aria-label="Secondary roads opacity"]')).toHaveValue("100");
+  await page.getByRole("button",{name:"Reset to preset"}).click();
+  await expect(page.locator('input[aria-label="Secondary roads opacity"]')).toHaveValue("80");
   await expect(page.getByRole("combobox",{name:"Buildings visibility"})).toHaveValue("inherit");
   expect(styleRequests).toBe(originalRequests);
   expect(await page.evaluate(()=>document.querySelector(".maplibregl-canvas")===(window as Window & {atlasDetailCanvas?:Element|null}).atlasDetailCanvas)).toBe(true);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});
+
+test("revamped preset information hierarchy keeps manual edits across instant switches",async({page})=>{
+  let styleRequests=0;
+  await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
+    styleRequests++;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},body:JSON.stringify(fixtureStyle)});
+  });
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.waitForLoadState("networkidle");
+  const before=styleRequests;
+  await expect(page.locator('input[aria-label="Residential & local roads opacity"]')).toHaveValue("35");
+  await page.getByRole("button",{name:"Apply Hiking preset"}).click();
+  await expect(page.locator('input[aria-label="Service roads & paths opacity"]')).toHaveValue("100");
+  await expect(page.locator('input[aria-label="Motorways & highways opacity"]')).toHaveValue("45");
+  await page.locator('input[aria-label="Secondary roads opacity"]').fill("25");
+  await page.getByRole("button",{name:"Apply Navigation preset"}).click();
+  await expect(page.locator('input[aria-label="Secondary roads opacity"]')).toHaveValue("25");
+  await expect(page.locator('input[aria-label="Residential & local roads opacity"]')).toHaveValue("90");
+  await page.getByRole("button",{name:"Reset to preset"}).click();
+  await expect(page.locator('input[aria-label="Secondary roads opacity"]')).toHaveValue("100");
+  expect(styleRequests).toBe(before);
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
 });

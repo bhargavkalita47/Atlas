@@ -221,3 +221,10 @@
 .atlas-detail-visibility:focus-visible{outline:2px solid #8195ea;outline-offset:2px}
 .atlas-detail-visibility option{font-size:12px}
 .atlas-detail-panel .section-label{display:inline-flex;align-items:center;gap:6px}
+
+/* Preset v2: quiet detail-preview bars, no imagery downloads */
+.atlas-detail-profile{padding:8px 10px;border:1px solid #e2e8f0;border-radius:9px;background:#f7f9fd;font-size:10px;color:#7b8aa2;line-height:1.55;margin:-2px 0 12px}
+.atlas-detail-profile span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:#94a0b1}
+.atlas-detail-profile strong{color:#384a67}
+.atlas-preset-road-preview{display:flex;gap:3px;margin-top:6px;width:70px;height:3px}
+.atlas-preset-road-preview i{height:100%;flex:1;border-radius:2px;background:#455e92}

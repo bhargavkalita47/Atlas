@@ -107,3 +107,22 @@ describe("Atlas map density / road hierarchy",()=>{
     expect(ROAD_TIERS).toHaveLength(5);
   });
 });
+
+import {mergeMapDetailOverrides,deriveMapDetailOverrides} from "./detailControls";
+describe("sparse manual map-detail adjustments",()=>{
+  it("inherits new preset profiles while persisting only changed controls",()=>{
+    const baseline=createMapDetailSettings("quiet");
+    const wanted=mergeMapDetailOverrides(baseline,{
+      roads:{secondary:25},features:{poi:{visible:true}}
+    });
+    const changes=deriveMapDetailOverrides(baseline,wanted);
+    expect(changes.roads).toEqual({secondary:25});
+    expect(changes.features.poi).toEqual({visible:true});
+    const alternate=createMapDetailSettings("balanced");
+    const merged=mergeMapDetailOverrides(alternate,changes);
+    expect(merged.roads.secondary).toBe(25);
+    expect(merged.roads.local).toBe(80);
+    expect(merged.features.poi.visible).toBe(true);
+    expect(baseline.features.poi.visible).toBe(false);
+  });
+});

@@ -1,6 +1,6 @@
 import {useMemo,useState} from "react";
 import {
-  ATLAS_STYLE_PRESETS,deriveSemanticPalette,type AtlasPresetDefinition
+  ATLAS_STYLE_PRESETS,deriveSemanticPalette,getAtlasPresetDetailSettings,type AtlasPresetDefinition
 } from "@atlas/style-core";
 import {Check,Layers3,Search} from "lucide-react";
 
@@ -29,6 +29,14 @@ function Preview({preset,palette}:{preset:AtlasPresetDefinition;palette:readonly
     <span className="atlas-preset-road r2" style={{background:colors.roads}}/>
     <span className="atlas-preset-road r3" style={{background:colors.roads}}/>
     <span className="atlas-preset-map-label" style={{color:colors.labels}}>ATLAS</span>
+  </span>;
+}
+function DetailBars({preset}:{preset:AtlasPresetDefinition}){
+  const profile=getAtlasPresetDetailSettings(preset.id);
+  return <span className="atlas-preset-road-preview" aria-label="Preset road detail hierarchy">
+    {(["motorway","primary","secondary","local","paths"] as const).map(tier=><i
+      key={tier} title={tier+": "+profile.roads[tier]+"%"}
+      style={{opacity:.12+profile.roads[tier]/115}}/>)}
   </span>;
 }
 export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Props){
@@ -72,6 +80,7 @@ export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Prop
           <strong>{preset.name}</strong>
           <small>{preset.summary}</small>
           <span className="atlas-preset-card-meta">{FAMILY_NAMES[preset.family]} · {preset.baseStyle} recipe</span>
+          <DetailBars preset={preset}/>
         </span>
         {basePresetId===preset.id&&<span className="atlas-preset-selected" aria-hidden="true"><Check size={13}/></span>}
       </button>)}
