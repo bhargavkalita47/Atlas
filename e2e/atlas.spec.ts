@@ -392,10 +392,12 @@ test("revamped preset information hierarchy keeps manual edits across instant sw
   await page.waitForLoadState("networkidle");
   const before=styleRequests;
   await expect(page.locator('input[aria-label="Residential & local roads opacity"]')).toHaveValue("35");
+  await page.locator('input[aria-label="Search map presets"]').fill("hiking");
   await page.getByRole("button",{name:"Apply Hiking preset"}).click();
   await expect(page.locator('input[aria-label="Service roads & paths opacity"]')).toHaveValue("100");
   await expect(page.locator('input[aria-label="Motorways & highways opacity"]')).toHaveValue("45");
   await page.locator('input[aria-label="Secondary roads opacity"]').fill("25");
+  await page.locator('input[aria-label="Search map presets"]').fill("navigation");
   await page.getByRole("button",{name:"Apply Navigation preset"}).click();
   await expect(page.locator('input[aria-label="Secondary roads opacity"]')).toHaveValue("25");
   await expect(page.locator('input[aria-label="Residential & local roads opacity"]')).toHaveValue("90");
