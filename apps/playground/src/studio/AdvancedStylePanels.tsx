@@ -6,7 +6,7 @@ import {
 } from "@atlas/style-core";
 import {Route,Type,ZoomIn,RotateCcw} from "lucide-react";
 
-type Props={settings:AdvancedStyleSettings;onChange:(settings:AdvancedStyleSettings)=>void;baseStyle:unknown};
+type Props={settings:AdvancedStyleSettings;onChange:(settings:AdvancedStyleSettings)=>void;baseStyle:unknown;presetColor?:string};
 const roadNames:Record<RoadTier,string>={
   motorway:"Motorways & expressways",primary:"Primary roads",
   secondary:"Secondary & tertiary roads",local:"Local & residential",
@@ -21,26 +21,25 @@ const featureNames:Record<DetailFeature,string>={
   placeLabels:"All place labels",roadLabels:"All road labels",poi:"POIs",
   transit:"Transit & rail",boundaries:"Boundaries",terrain:"Terrain"
 };
-const emptyColor="#8495ae";
-function OverrideColor({name,value,onChange,defaultColor}:{name:string,value:string|null,defaultColor:string,onChange:(value:string|null)=>void}){
+function OverrideColor({name,value,onChange,defaultColor,disabled=false}:{name:string,value:string|null,defaultColor:string,onChange:(value:string|null)=>void,disabled?:boolean}){
   return <label className="atlas-design-control atlas-design-color-control">
     <span>{name}</span>
-    <input type="checkbox" aria-label={name+" custom"} checked={value!==null}
+    <input type="checkbox" aria-label={name+" custom"} checked={value!==null} disabled={disabled}
       onChange={e=>onChange(e.target.checked?defaultColor:null)}/>
-    <input type="color" aria-label={name+" color"} disabled={value===null}
+    <input type="color" aria-label={name+" color"} disabled={disabled||value===null}
       value={value??defaultColor} onChange={e=>onChange(e.target.value)}/>
   </label>;
 }
-function OverrideSlider({name,value,min,max,step,unit,onChange,initial}:{name:string,value:number|null,min:number,max:number,step:number,unit:string,initial:number,onChange:(v:number|null)=>void}){
+function OverrideSlider({name,value,min,max,step,unit,onChange,initial,disabled=false}:{name:string,value:number|null,min:number,max:number,step:number,unit:string,initial:number,onChange:(v:number|null)=>void,disabled?:boolean}){
   return <div className="atlas-design-control">
     <label>
       <span>{name}</span>
-      <input type="checkbox" aria-label={name+" custom"} checked={value!==null}
+      <input type="checkbox" aria-label={name+" custom"} checked={value!==null} disabled={disabled}
         onChange={e=>onChange(e.target.checked?initial:null)}/>
     </label>
     <div className="atlas-design-sliderline">
       <input type="range" aria-label={name} min={min} max={max} step={step}
-        disabled={value===null} value={value??initial}
+        disabled={disabled||value===null} value={value??initial}
         onChange={e=>onChange(Number(e.target.value))}/>
       <output>{value===null?"Preset":value+unit}</output>
     </div>
@@ -77,7 +76,7 @@ function RangeField({name,range,onChange}:{name:string,range:ZoomRange,onChange:
       value={range.max??""} onChange={e=>write("max",e.target.value)}/></label>
   </div>;
 }
-export function AdvancedRoadPanel({settings,onChange,baseStyle}:Props){
+export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#7194c5"}:Props){
   const styleLayers=useMemo(()=>{
     if(!baseStyle||typeof baseStyle!=="object")return [];
     const layers=(baseStyle as {layers?:unknown}).layers;
@@ -93,13 +92,13 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle}:Props){
     {ROAD_TIERS.map(tier=><details className="atlas-design-fold" key={tier} open={tier==="primary"||tier==="secondary"?true:undefined}>
       <summary>{roadNames[tier]}<span>Style</span></summary>
       <div className="atlas-design-grid">
-        <OverrideColor name={roadNames[tier]+" road"} value={settings.roads[tier].color} defaultColor="#7194c5"
+        <OverrideColor name={roadNames[tier]+" road"} value={settings.roads[tier].color} defaultColor={presetColor}
           onChange={color=>set(tier,{color})}/>
         <OverrideSlider name={roadNames[tier]+" width"} value={settings.roads[tier].width} initial={3}
           min={.25} max={24} step={.25} unit=" px" onChange={width=>set(tier,{width})}/>
-        <OverrideColor name={roadNames[tier]+" casing"} value={settings.roads[tier].outlineColor} defaultColor="#485f82"
+        <OverrideColor name={roadNames[tier]+" casing"} value={settings.roads[tier].outlineColor} defaultColor="#485f82" disabled={!hasCasings}
           onChange={outlineColor=>set(tier,{outlineColor})}/>
-        <OverrideSlider name={roadNames[tier]+" casing width"} value={settings.roads[tier].outlineWidth} initial={4}
+        <OverrideSlider name={roadNames[tier]+" casing width"} value={settings.roads[tier].outlineWidth} initial={4} disabled={!hasCasings}
           min={.25} max={32} step={.25} unit=" px" onChange={outlineWidth=>set(tier,{outlineWidth})}/>
         <label className="atlas-design-control"><span>Line pattern</span>
           <select aria-label={roadNames[tier]+" dash pattern"} value={settings.roads[tier].dash}
@@ -117,7 +116,7 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle}:Props){
     </p>
   </section>;
 }
-export function TypographyPanel({settings,onChange,baseStyle}:Props){
+export function TypographyPanel({settings,onChange,baseStyle,presetColor="#8495ae"}:Props){
   const fonts=useMemo(()=>availableProviderFonts(baseStyle),[baseStyle]);
   const set=(role:LabelRole,changes:Partial<LabelDesign>)=>onChange({
     ...settings,labels:{...settings.labels,[role]:{...settings.labels[role],...changes}}
@@ -128,7 +127,7 @@ export function TypographyPanel({settings,onChange,baseStyle}:Props){
     {LABEL_ROLES.map(role=><details className="atlas-design-fold" key={role} open={role==="city"||role==="road"?true:undefined}>
       <summary>{labelNames[role]}<span>Type</span></summary>
       <div className="atlas-design-grid">
-        <OverrideColor name={labelNames[role]+" text"} value={settings.labels[role].color} defaultColor={emptyColor}
+        <OverrideColor name={labelNames[role]+" text"} value={settings.labels[role].color} defaultColor={presetColor}
           onChange={color=>set(role,{color})}/>
         <OverrideSlider name={labelNames[role]+" size"} value={settings.labels[role].sizeScale} initial={1}
           min={.5} max={2.5} step={.05} unit=" ×" onChange={sizeScale=>set(role,{sizeScale})}/>

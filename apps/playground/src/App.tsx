@@ -493,8 +493,8 @@ export default function App(){
                   presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
                   onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
                   onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
-                <AdvancedRoadPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle}/>
-                <TypographyPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle}/>
+                <AdvancedRoadPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.roads}/>
+                <TypographyPanel settings={advancedSettings} onChange={setAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.labels}/>
                 <ZoomDetailPanel settings={advancedSettings} onChange={setAdvancedSettings}
                   currentZoom={view?.zoom??13}
                   onPreviewZoom={zoom=>map.current?.setView(view?.center??GUWAHATI,zoom)}/>
