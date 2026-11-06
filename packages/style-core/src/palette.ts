@@ -118,7 +118,8 @@ export function deriveSemanticPalette(presetId:string,input:readonly string[]):S
     mixPaletteColors(preset.palette.land,landAnchor,.65),
     dark?"#0D141C":"#FAFAF8",dark?.37:.43
   );
-  const blue=pickHue(colors,210,1),green=pickHue(colors,130,2);
+  const blue=mixPaletteColors(colors[1]!,pickHue(colors,210,1),.52);
+  const green=mixPaletteColors(colors[2]!,pickHue(colors,130,2),.52);
   const secondary=colors[Math.min(3,colors.length-1)]!;
   const accent=colors[colors.length-1]!;
   const water=mixPaletteColors(surface,blue,dark?.66:.51);
@@ -135,8 +136,8 @@ export function deriveSemanticPalette(presetId:string,input:readonly string[]):S
     roads,
     buildings,
     labels,
-    boundaries:mixPaletteColors(surface,labels,dark?.68:.46),
-    transit:mixPaletteColors(surface,colors[3]!,dark?.85:.75),
+    boundaries:mixPaletteColors(mixPaletteColors(surface,labels,dark?.68:.46),colors[0]!, .22),
+    transit:mixPaletteColors(surface,colors[Math.min(4,colors.length-1)]!,dark?.85:.75),
     poi:mixPaletteColors(surface,accent,dark?.88:.76),
     terrain:mixPaletteColors(surface,colors[2]!,dark?.38:.28),
   };

@@ -56,6 +56,15 @@ describe("palette reskin engine",()=>{
     expect(light.land).not.toBe(dark.land);
     expect(light.roads).not.toBe(dark.roads);
   });
+  it("uses every one of six supplied swatches in at least one generated role",()=>{
+    const six=["#162534","#76B8DB","#8DBD88","#DFA589","#C77BAA","#E7E9D4"];
+    const original=deriveSemanticPalette("minimal-light",six);
+    for(let index=0;index<six.length;index++){
+      const modified=[...six];
+      modified[index]="#000000";
+      expect(deriveSemanticPalette("minimal-light",modified)).not.toEqual(original);
+    }
+  });
   it("does not silently allow degenerate same-colour seeds to make labels unreadable",()=>{
     for(const preset of ["minimal-light","minimal-dark","high-contrast"]){
       const roles=deriveSemanticPalette(preset,["#777777","#777777","#777777","#777777"]);
