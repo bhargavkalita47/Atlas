@@ -105,6 +105,16 @@ describe("Atlas map density / road hierarchy",()=>{
     const style=base();
     expect(classifyRoadLayer(inspectStyleLayers(style).find(x=>x.id==="railway-tram")!)).toBeNull();
   });
+  it("classifies OpenFreeMap highway_minor and highway_path before generic highway namespace",()=>{
+    const base={
+      id:"highway_minor",type:"line",suggestedGroup:"roads",suggestionOnly:true
+    } as const;
+    expect(classifyRoadLayer(base)).toBe("local");
+    expect(classifyRoadLayer({...base,id:"highway_path"})).toBe("paths");
+    expect(classifyRoadLayer({...base,id:"highway_secondary_tertiary"})).toBe("secondary");
+    expect(classifyRoadLayer({...base,id:"highway_major_inner"})).toBe("primary");
+    expect(classifyRoadLayer({...base,id:"highway_motorway_inner"})).toBe("motorway");
+  });
   it("preserves original documents and restores the original style when reset",()=>{
     const style=base(),original=JSON.stringify(style);
     const doc=createEmptyStyleDocument("test","positron");

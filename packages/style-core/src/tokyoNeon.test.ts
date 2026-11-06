@@ -3,7 +3,7 @@ import {createAtlasPresetDocument} from "./presets";
 import {getAtlasPresetAdvancedSettings} from "./presetAdvanced";
 import {getAtlasPresetDetailSettings} from "./presetDetails";
 import {visibleRoadContrast} from "./roadLegibility";
-import {ROAD_TIERS} from "./detailControls";
+import {ROAD_TIERS,classifyRoadLayer} from "./detailControls";
 import {compileAtlasStyle,inspectStyleLayers,validateStyleDocument} from "./index";
 
 /**
@@ -47,6 +47,17 @@ describe("Tokyo Neon road display regression",()=>{
         expect(layer.paint?.["line-width"]).toBeDefined();
         expect(layer.paint?.["line-color"]).toBeDefined();
         expect(layer.minzoom??0).toBeLessThanOrEqual(13);
+      }
+      // The base style uses "highway" in ALL those layer IDs.
+      // Specific suffixes must win over the generic "highway" token.
+      const tierByLayer={
+        highway_minor:"local",
+        highway_path:"paths",
+        highway_major_inner:"primary",
+        highway_motorway_inner:"motorway"
+      } as const;
+      for(const [id,tier] of Object.entries(tierByLayer)){
+        expect(classifyRoadLayer(available.find(l=>l.id===id)!),id).toBe(tier);
       }
       const minor=lines.find(l=>l.id==="highway_minor")!;
       // This real filter covers the "minor" and "service" roads Tokyo uses.

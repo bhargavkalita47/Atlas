@@ -89,11 +89,14 @@ export function classifyRoadLayer(layer:StyleLayerDescriptor):RoadTier|null{
   if(layer.type!=="line"||layer.suggestedGroup!=="roads")return null;
   const id=tokenLayer(layer.id);
   if(/rail|tram|subway|metro|transit/.test(id))return null;
+  // OpenFreeMap uses IDs such as highway_minor and highway_path.
+  // "highway" is only a generic namespace in those IDs, not the class.
+  // Match the most specific classes before considering "highway"/"major".
   if(/(?:^|[- ])(?:motorway|trunk|freeway|expressway)(?:$|[- ])/.test(id))return "motorway";
-  if(/(?:^|[- ])(?:primary|highway|major)(?:$|[- ])/.test(id))return "primary";
   if(/(?:^|[- ])(?:secondary|tertiary|collector)(?:$|[- ])/.test(id))return "secondary";
   if(/(?:^|[- ])(?:service|track|path|trail|footway|cycleway|pedestrian|steps|walkway)(?:$|[- ])/.test(id))return "paths";
   if(/(?:^|[- ])(?:residential|minor|local|living|street|unclassified)(?:$|[- ])/.test(id))return "local";
+  if(/(?:^|[- ])(?:primary|major|highway)(?:$|[- ])/.test(id))return "primary";
   return null;
 }
 export function classifyMapFeature(layer:StyleLayerDescriptor):DetailFeature|null{
