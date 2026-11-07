@@ -152,9 +152,32 @@ export function TypographyPanel({settings,onChange,baseStyle,presetColor="#8495a
   const set=(role:LabelRole,changes:Partial<LabelDesign>)=>onChange({
     ...settings,labels:{...settings.labels,[role]:{...settings.labels[role],...changes}}
   });
+  const applyAll=(key:"outline"|"halo",value:boolean|null)=>
+    onChange({...settings,labels:Object.fromEntries(
+      LABEL_ROLES.map(role=>[role,{...settings.labels[role],[key]:value}])
+    ) as AdvancedStyleSettings["labels"]});
+  const aggregate=(key:"outline"|"halo"):boolean|null=>{
+    const first=settings.labels.city[key];
+    return LABEL_ROLES.every(role=>settings.labels[role][key]===first)?first:null;
+  };
   return <section className="pane-section atlas-advanced-panel" aria-label="Typography studio">
     <div className="section-heading"><div className="section-label"><Type size={14}/> TYPOGRAPHY STUDIO</div></div>
-    <p className="atlas-detail-intro">The chosen theme now sets text size, colour, spacing and zoom hierarchy. You can override each value; font stacks remain restricted to those supported by this map.</p>
+    <p className="atlas-detail-intro">Adjust map labels and explicitly show or hide crisp text outlines and soft halos. “Preset” inherits the selected map theme; choose Show to override even a halo-free dark theme.</p>
+    <div className="atlas-typography-global" role="group" aria-label="All map text effects">
+      {(["outline","halo"] as const).map(key=><div key={key}>
+        <strong>{key==="outline"?"Text outlines":"Soft text halos"}</strong>
+        <div className="atlas-toggles">
+          {([["inherit",null],["show",true],["hide",false]] as const).map(([name,value])=>
+            <button type="button" aria-label={"All text "+key+" "+name} key={name}
+              aria-pressed={aggregate(key)===value}
+              className={aggregate(key)===value?"active":""}
+              onClick={()=>applyAll(key,value)}>
+              {name==="inherit"?"Preset":name==="show"?"Show":"Hide"}
+            </button>
+          )}
+        </div>
+      </div>)}
+    </div>
     {LABEL_ROLES.map(role=><details className="atlas-design-fold" key={role} open={role==="city"||role==="road"?true:undefined}>
       <summary>{labelNames[role]}<span>Type</span></summary>
       <div className="atlas-design-grid">
@@ -173,9 +196,16 @@ export function TypographyPanel({settings,onChange,baseStyle,presetColor="#8495a
         </label>
         <VisibleSelector name={labelNames[role]} value={settings.labels[role].visible}
           onChange={visible=>set(role,{visible})}/>
+        {(["outline","halo"] as const).map(key=><label className="atlas-design-control" key={key}>
+          <span>{key==="outline"?"Crisp text outline":"Soft text halo"}</span>
+          <select aria-label={labelNames[role]+" "+key} value={settings.labels[role][key]===null?"inherit":settings.labels[role][key]?"show":"hide"}
+            onChange={e=>set(role,{[key]:e.target.value==="inherit"?null:e.target.value==="show"})}>
+            <option value="inherit">Preset</option><option value="show">Show</option><option value="hide">Hide</option>
+          </select>
+        </label>)}
       </div>
     </details>)}
-    <p className="atlas-detail-footnote">{fonts.length} provider font stack{fonts.length===1?"":"s"} available. Additional font files are not downloaded merely by selecting a style control. Dark theme text halos remain disabled.</p>
+    <p className="atlas-detail-footnote">{fonts.length} provider font stack{fonts.length===1?"":"s"} available. Additional font files are not downloaded merely by selecting a style control. Dark themes default to halo-free text, but you can override this here.</p>
   </section>;
 }
 export function ZoomDetailPanel({settings,onChange,currentZoom,onPreviewZoom}:Omit<Props,"baseStyle"> & {

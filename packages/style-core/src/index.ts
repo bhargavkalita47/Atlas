@@ -321,3 +321,11 @@ export type {AdvancedPaletteOverrides,AdvancedOverrides} from "./presetAdvanced"
 
 export {ROAD_CONTROL_GROUPS,ROAD_GROUP_TIERS,ROAD_CLASS_VALUES,roadTierForClass,roadGroupForClass,roadClassesInFilter,isNonRoadLine} from "./detailControls";
 export type {RoadControlGroup} from "./detailControls";
+
+export {SEMANTIC_FAMILIES,SEMANTIC_FEATURES,SEMANTIC_KEYS,createSemanticFeatureSettings,
+  inspectSemanticCoverage,validateSemanticFeatureSettings,applySemanticFeatureControls} from "./semanticFeatures";
+export type {SemanticFamily,SemanticFeature,SemanticStyleSettings,FeatureDesign,FeatureSupport} from "./semanticFeatures";
+
+export {ATLAS_SEMANTIC_PROFILE_VERSION,getAtlasPresetSemanticSettings,createSemanticOverrides,
+  deriveSemanticOverrides,mergeSemanticOverrides} from "./presetSemantic";
+export type {SemanticPaletteOverride,SemanticOverrides,SemanticFeatureOverride} from "./presetSemantic";

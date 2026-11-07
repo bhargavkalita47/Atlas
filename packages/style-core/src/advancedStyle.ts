@@ -13,7 +13,8 @@ export type RoadDesign={
 };
 export type LabelDesign={
   color:string|null; sizeScale:number|null; spacing:number|null;
-  fontStack:string[]|null; visible:boolean|null; zoom:ZoomRange;
+  fontStack:string[]|null; visible:boolean|null;
+  outline:boolean|null; halo:boolean|null; zoom:ZoomRange;
 };
 export type AdvancedStyleSettings={
   roads:Record<RoadTier,RoadDesign>;
@@ -29,7 +30,7 @@ export function createAdvancedStyleSettings():AdvancedStyleSettings {
     }])) as Record<RoadTier,RoadDesign>,
     labels:Object.fromEntries(LABEL_ROLES.map(k=>[k,{
       color:null,sizeScale:null,spacing:null,fontStack:null,
-      visible:null,zoom:range()
+      visible:null,outline:null,halo:null,zoom:range()
     }])) as Record<LabelRole,LabelDesign>,
     features:Object.fromEntries(DETAIL_FEATURES.map(k=>[k,range()])) as Record<DetailFeature,ZoomRange>
   };
@@ -149,6 +150,8 @@ export function validateAdvancedStyleSettings(settings:AdvancedStyleSettings):st
     if((s.sizeScale!==null&&!finite(s.sizeScale,.5,2.5))||(s.spacing!==null&&!finite(s.spacing,-.1,.4)))errors.push(role+": invalid label size/spacing");
     if(s.fontStack!==null&&(!s.fontStack.length||!s.fontStack.every(x=>typeof x==="string"&&x.length<128)))errors.push(role+": invalid font stack");
     if(!validZoomRange(s.zoom))errors.push(role+": invalid label zoom");
+    if((s.outline!==null&&typeof s.outline!=="boolean")||
+      (s.halo!==null&&typeof s.halo!=="boolean"))errors.push(role+": invalid halo/outline");
   }
   for(const key of DETAIL_FEATURES)if(!validZoomRange(settings.features[key]))errors.push(key+": invalid feature zoom");
   return errors;
@@ -256,6 +259,29 @@ export function applyAdvancedStyleControls(
     applyZoom(doc,layer.id,{...base,minzoom:baseMin,maxzoom:baseMax},label.zoom);
     if(label.visible!==null)put(doc,layer.id,"layout","visibility",label.visible?"visible":"none");
     if(label.color!==null)put(doc,layer.id,"paint","text-color",label.color);
+    if(label.outline!==null||label.halo!==null){
+      const currentWidth=sourceValue(doc,base,layer,"paint","text-halo-width",0);
+      const width=typeof currentWidth==="number"?currentWidth:0;
+      // A crisp outline is the zero-blur version of MapLibre text halo.
+      // "Soft halo" adds blur and the minimum width it needs to render.
+      // Explicit overrides may re-enable a halo on dark themes; Preset
+      // leaves existing dark-theme zero-width halo settings untouched.
+      if(label.outline===false&&label.halo!==true){
+        put(doc,layer.id,"paint","text-halo-width",0);
+        put(doc,layer.id,"paint","text-halo-blur",0);
+      }else{
+        if(label.outline===true||label.halo===true){
+          put(doc,layer.id,"paint","text-halo-width",
+            label.outline===true&&label.halo===true?1.6:
+            label.halo===true?1.3:Math.max(.85,width));
+          const currentColor=doc.groups.land?.color??"#F5F6F8";
+          put(doc,layer.id,"paint","text-halo-color",currentColor);
+        }
+        if(label.halo===true)put(doc,layer.id,"paint","text-halo-blur",1.15);
+        else if(label.halo===false||label.outline===true)
+          put(doc,layer.id,"paint","text-halo-blur",0);
+      }
+    }
     if(label.sizeScale!==null){
       const originalSize=sourceValue(doc,base,layer,"layout","text-size",16);
       const size=onZoomOutputs(originalSize,stop=>typeof stop==="number"?
@@ -270,7 +296,7 @@ export function applyAdvancedStyleControls(
     }
   }
   const hasEdits=Object.values(settings.roads).some(v=>v.color||v.width||v.outlineColor||v.outlineWidth||v.dash!=="inherit"||v.visible!==null||v.zoom.min!==null||v.zoom.max!==null)||
-    Object.values(settings.labels).some(v=>v.color||v.sizeScale||v.spacing!==null||v.fontStack||v.visible!==null||v.zoom.min!==null||v.zoom.max!==null)||
+    Object.values(settings.labels).some(v=>v.color||v.sizeScale||v.spacing!==null||v.fontStack||v.visible!==null||v.outline!==null||v.halo!==null||v.zoom.min!==null||v.zoom.max!==null)||
     Object.values(settings.features).some(v=>v.min!==null||v.max!==null);
   if(hasEdits){
     doc.metadata={...doc.metadata,advancedStyleVersion:1,
