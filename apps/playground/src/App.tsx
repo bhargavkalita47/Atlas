@@ -124,9 +124,14 @@ function downloadText(name:string,content:string){
 }
 export default function App(){
   const map=useRef<AtlasMapHandle>(null);
+  const inspectorScrollRef=useRef<HTMLDivElement>(null);
   const geocoder=useMemo(()=>createPhotonGeocoder(),[]);
   const [tab,setTab]=useState<Tab>("explore");
   const [styleSection,setStyleSection]=useState<StyleSection>("themes");
+  const switchStyleSection=(next:StyleSection)=>{
+    setStyleSection(next);
+    inspectorScrollRef.current?.scrollTo({top:0,behavior:"instant"});
+  };
   const [mobileMenu,setMobileMenu]=useState(false);
   const [collapsed,setCollapsed]=useState(false);
   const [mode,setMode]=useState<Mode>("inspect");
@@ -428,7 +433,7 @@ export default function App(){
               diagnostics:"Verify browser capabilities and SDK behavior."
             }[tab]}</p>
           </div>
-          <div className="inspector-scroll">
+          <div className="inspector-scroll" ref={inspectorScrollRef}>
             {tab==="explore"&&<>
               <section className="pane-section"><div className="section-label">QUICK ACTIONS</div>
                 <div className="action-list">
@@ -491,14 +496,14 @@ export default function App(){
                   type="button" role="tab" key={section.id}
                   aria-selected={styleSection===section.id}
                   className={"atlas-studio-tab"+(styleSection===section.id?" active":"")}
-                  onClick={()=>setStyleSection(section.id)}>
+                  onClick={()=>switchStyleSection(section.id)}>
                   {section.label}
                 </button>)}
               </div>
               <div className="atlas-studio-quick">
-                <button type="button" onClick={()=>setStyleSection("themes")}>Browse 81 themes</button>
-                <button type="button" onClick={()=>setStyleSection("features")}>Style map features</button>
-                <button type="button" onClick={()=>setStyleSection("typography")}>Text halo & outline</button>
+                <button type="button" onClick={()=>switchStyleSection("themes")}>Browse 81 themes</button>
+                <button type="button" onClick={()=>switchStyleSection("features")}>Style map features</button>
+                <button type="button" onClick={()=>switchStyleSection("typography")}>Text halo & outline</button>
               </div>
               {styleSection==="setup"&&<section className="pane-section"><div className="section-label">RENDER ENGINE</div>
                 <div className="filter-options">

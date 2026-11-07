@@ -76,7 +76,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
         const count=SEMANTIC_KEYS.filter(key=>SEMANTIC_FEATURES[key].family===item.id&&coverage[key].layers>0).length;
         return <button type="button" role="tab" aria-selected={family===item.id}
           key={item.id} className={family===item.id?"active":""}
-          onClick={()=>setFamily(item.id)}>
+          onClick={()=>{setFamily(item.id);setQuery("");}}>
           {groups[item.id]} <small>{count}</small>
         </button>;
       })}
@@ -90,8 +90,11 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
       {listed.map(key=>{
         const cfg=settings[key],info=SEMANTIC_FEATURES[key],support=coverage[key];
         const available=support.layers>0;
-        const isLine=lineKeys.has(key);
+        const isLine=lineKeys.has(key)&&(
+          key!=="terrain"||kinds.some(l=>l.sourceLayer==="contour"&&l.type==="line"));
         const isFill=fillKeys.has(key);
+        const colorLabel=key.startsWith("poi")?"Text colour (sprite icons may keep their original artwork)":
+          isLine?"Line colour":"Fill colour";
         const isIcon=key.startsWith("poi")&&hasIcons;
         const isExtrusion=key==="buildings"&&buildings3d;
         const color=cfg.color??colours[key]??"#95A2B5";
@@ -105,7 +108,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
           </summary>
           {available&&<div className="atlas-feature-fields">
             <label className="atlas-design-control atlas-feature-color">
-              <span>Fill / line colour</span>
+              <span>{colorLabel}</span>
               <input type="checkbox" aria-label={label+" custom colour"}
                 checked={cfg.color!==null}
                 onChange={e=>change(key,{color:e.target.checked?color:null})}/>
