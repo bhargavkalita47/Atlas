@@ -27,10 +27,10 @@ const provider={
 };
 type L={id:string,paint?:Record<string,unknown>,layout?:Record<string,unknown>,minzoom?:number};
 const layer=(style:Record<string,unknown>,id:string)=>(style.layers as unknown as L[]).find(x=>x.id===id)!;
-describe("All 81 cartographic presets v3",()=>{
+describe("All 81 cartographic presets v4",()=>{
   it("has a valid and independent advanced design profile for every preset",()=>{
     expect(ATLAS_STYLE_PRESETS.length).toBe(81);
-    expect(ATLAS_ADVANCED_PROFILE_VERSION).toBe(3);
+    expect(ATLAS_ADVANCED_PROFILE_VERSION).toBe(4);
     const fingerprints=new Set<string>();
     for(const preset of ATLAS_STYLE_PRESETS){
       const profile=getAtlasPresetAdvancedSettings(preset.id);
@@ -104,7 +104,9 @@ describe("All 81 cartographic presets v3",()=>{
       expect(layer(output,"city-label").layout?.["text-size"]).toBeDefined();
       expect(layer(output,"road-residential").minzoom).toBeGreaterThanOrEqual(10);
       if(id==="accessibility-dark"){
-        expect(layer(output,"city-label").paint?.["text-halo-width"]).toBe(0);
+        // Accessible themes now intentionally use crisp outlines.
+        expect(Number(layer(output,"city-label").paint?.["text-halo-width"])).toBeGreaterThan(0);
+        expect(layer(output,"city-label").paint?.["text-halo-blur"]).toBe(0);
       }
     }
     expect(JSON.stringify(provider)).toBe(original);

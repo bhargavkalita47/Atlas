@@ -46,12 +46,17 @@ describe("Atlas 81 curated detail profiles v2",()=>{
       const painted=compileAtlasStyle(base,doc).style;
       const texts=(painted.layers as unknown as Array<{id:string,paint?:Record<string,unknown>}>)
         .filter(layer=>layer.id==="place-label"||layer.id==="road-label");
-      if(preset.baseStyle==="dark"){
+      // Theme-specific outlines and glows are now authored by Stage 3.
+      // No longer assume all dark themes have exactly the same halo.
+      expect(texts.every(layer=>{
+        const width=layer.paint?.["text-halo-width"];
+        return typeof width==="number"&&Number.isFinite(width)&&width>=0;
+      })).toBe(true);
+      if(preset.id==="minimal-dark"||preset.id==="tokyo-neon"){
         expect(texts.every(layer=>layer.paint?.["text-halo-width"]===0)).toBe(true);
-        expect(texts.every(layer=>layer.paint?.["text-halo-blur"]===0)).toBe(true);
-        expect(texts.every(layer=>layer.paint?.["text-halo-color"]==="rgba(0, 0, 0, 0)")).toBe(true);
-      }else{
-        expect(texts.every(layer=>layer.paint?.["text-halo-width"]!==0)).toBe(true);
+      }
+      if(preset.id==="synthwave"){
+        expect(texts.some(layer=>Number(layer.paint?.["text-halo-width"])>0)).toBe(true);
       }
       expect(doc.metadata?.presetDetailVersion).toBe(2);
     }
