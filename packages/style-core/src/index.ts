@@ -318,3 +318,6 @@ export type {LabelRole,RoadDash,RoadDesign,LabelDesign,ZoomRange,AdvancedStyleSe
 
 export {ATLAS_ADVANCED_PROFILE_VERSION,getAtlasPresetAdvancedSettings,createAdvancedOverrides,deriveAdvancedOverrides,mergeAdvancedOverrides} from "./presetAdvanced";
 export type {AdvancedPaletteOverrides,AdvancedOverrides} from "./presetAdvanced";
+
+export {ROAD_CONTROL_GROUPS,ROAD_GROUP_TIERS,ROAD_CLASS_VALUES,roadTierForClass,roadGroupForClass,roadClassesInFilter,isNonRoadLine} from "./detailControls";
+export type {RoadControlGroup} from "./detailControls";

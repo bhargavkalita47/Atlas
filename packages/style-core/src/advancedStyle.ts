@@ -1,5 +1,5 @@
 import type {AtlasStyleDocument,JsonValue,LayerOverride,StyleLayerDescriptor} from "./index";
-import {ROAD_TIERS,DETAIL_FEATURES,classifyRoadLayer,classifyMapFeature,type RoadTier,type DetailFeature} from "./detailControls";
+import {ROAD_TIERS,ROAD_CLASS_VALUES,DETAIL_FEATURES,classifyRoadLayer,isNonRoadLine,classifyMapFeature,type RoadTier,type DetailFeature} from "./detailControls";
 
 /** Atlas authoring controls, separate from renderer, tile provider and runtime. */
 export const LABEL_ROLES=["city","locality","road","poi"] as const;
@@ -41,13 +41,6 @@ const finite=(n:number,min:number,max:number)=>Number.isFinite(n)&&n>=min&&n<=ma
 const token=(id:string)=>id.toLowerCase().replace(/_/g,"-");
 const casing=(l:StyleLayerDescriptor)=>/(?:casing|outline|border)/.test(token(l.id));
 const roadSelector:JsonValue=["to-string",["coalesce",["get","class"],["get","highway"],["get","type"],""]];
-const roadClasses:Record<RoadTier,readonly string[]>={
-  motorway:["motorway","trunk","freeway","expressway","motorway_link","trunk_link"],
-  primary:["primary","primary_link","highway"],
-  secondary:["secondary","tertiary","secondary_link","tertiary_link","collector"],
-  local:["residential","minor","unclassified","living_street","living","street","local"],
-  paths:["service","track","path","footway","cycleway","pedestrian","steps","trail","bridleway"]
-};
 const zoomExpr=(v:unknown):v is JsonValue[]=>
   Array.isArray(v)&&((v[0]==="interpolate"&&Array.isArray(v[2])&&v[2][0]==="zoom")||
     (v[0]==="step"&&Array.isArray(v[1])&&v[1][0]==="zoom"));
@@ -71,7 +64,7 @@ function matchRoad<T extends JsonValue>(
     const entries:JsonValue[]=[];
     for(const tier of ROAD_TIERS){
       const value=choose(tier,stop);
-      if(value!==null)entries.push([...roadClasses[tier]],value);
+      if(value!==null)entries.push([...ROAD_CLASS_VALUES[tier]],value);
     }
     return entries.length?["match",roadSelector,...entries,stop]:stop;
   });
@@ -183,7 +176,8 @@ export function applyAdvancedStyleControls(
     const feature=classifyMapFeature(layer);
     const road=layer.type==="line"&&layer.suggestedGroup==="roads"&&feature!=="transit";
     if(road){
-      const tier=classifyRoadLayer(layer),isOutline=casing(layer);
+      if(isNonRoadLine(layer,base))continue;
+      const tier=classifyRoadLayer(layer,base),isOutline=casing(layer);
       const relevant=ROAD_TIERS.filter(t=>{
         const v=settings.roads[t];
         return (isOutline?(v.outlineColor!==null||v.outlineWidth!==null):(v.color!==null||v.width!==null||v.visible!==null||v.zoom.min!==null||v.zoom.max!==null||v.dash!=="inherit"));
@@ -208,11 +202,10 @@ export function applyAdvancedStyleControls(
         const value=tier?chosen(tier):null;
         put(doc,layer.id,"paint",widthKey,value??matchRoad(baseWidth,t=>chosen(t)));
       }
-      if(isOutline)continue;
       if(tier){
         if(design!.visible!==null)put(doc,layer.id,"layout","visibility",design!.visible?"visible":"none");
         applyZoom(doc,layer.id,base,design!.zoom);
-        if(design!.dash!=="inherit"&&!(record(base?.paint)&&base.paint["line-pattern"])){
+        if(!isOutline&&design!.dash!=="inherit"&&!(record(base?.paint)&&base.paint["line-pattern"])){
           put(doc,layer.id,"paint","line-dasharray",design!.dash==="dashed"?["literal",[2,1.5]]:["literal",[1,.001]]);
         }
       }else{
@@ -237,16 +230,19 @@ export function applyAdvancedStyleControls(
             put(doc,layer.id,"paint","line-opacity",output);
           }else warned.push("Zoom-class gating skipped for provider expression in "+layer.id);
         }
-        const hasDash=ROAD_TIERS.some(t=>settings.roads[t].dash!=="inherit");
+        const hasDash=!isOutline&&ROAD_TIERS.some(t=>settings.roads[t].dash!=="inherit");
         if(hasDash&&!(record(base?.paint)&&base.paint["line-pattern"])){
           // MapLibre GL JS 6.x supports data-driven line-dasharray; every
           // returned array must be wrapped with literal in an expression.
           const entries:JsonValue[]=[];
           for(const t of ROAD_TIERS){
             const dash=settings.roads[t].dash;
-            if(dash!=="inherit")entries.push([...roadClasses[t],["literal",dash==="dashed"?[2,1.5]:[1,.001]]]);
+            if(dash!=="inherit")entries.push([...ROAD_CLASS_VALUES[t],["literal",dash==="dashed"?[2,1.5]:[1,.001]]]);
           }
-          put(doc,layer.id,"paint","line-dasharray",["match",roadSelector,...entries,["literal",[1,.001]]]);
+          const baseDash=sourceValue(doc,base,layer,"paint","line-dasharray",[1,.001]);
+          const unchanged=Array.isArray(baseDash)&&baseDash.every(x=>typeof x==="number")
+            ?["literal",baseDash]:baseDash;
+          put(doc,layer.id,"paint","line-dasharray",["match",roadSelector,...entries,unchanged]);
         }
       }
       continue;
