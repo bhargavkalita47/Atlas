@@ -641,7 +641,7 @@ test("Reset everything restores all Style Studio settings and retains map conten
   await page.getByRole("tab",{name:"Roads",exact:true}).click();
   await expect(roads).not.toHaveValue("23");
   await page.getByRole("tab",{name:"Typography",exact:true}).click();
-  await expect(page.getByRole("combobox",{name:"Cities & major places halo"})).toHaveValue("inherit");
+  await expect(page.getByRole("combobox",{name:"Cities & major places halo"})).toHaveValue("hide");
   await page.getByRole("tab",{name:"Zoom",exact:true}).click();
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) min zoom"]')).not.toHaveValue("16");
   await page.getByRole("tab",{name:"Layers",exact:true}).click();
@@ -651,4 +651,32 @@ test("Reset everything restores all Style Studio settings and retains map conten
   await expect(page.getByRole("button",{name:/Positron/})).toHaveClass(/selected/);
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});
+
+test("81 semantic presets recolour the feature library without reloading the vector map",async({page})=>{
+  let requests=0;
+  await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
+    requests++;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},body:JSON.stringify(fixtureStyle)});
+  });
+  await page.goto("/");
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Features",exact:true}).click();
+  const swatch=page.getByLabel("Building footprints theme colour");
+  await expect(swatch).toBeVisible();
+  const original=await swatch.getAttribute("style");
+  await expect(page.getByRole("status",{name:"Manual feature edits"})).toContainText("0 feature");
+  await page.waitForLoadState("networkidle");
+  const previousRequests=requests;
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
+  await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await page.getByRole("tab",{name:"Features",exact:true}).click();
+  await expect(swatch).not.toHaveAttribute("style",original!);
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
+  await page.getByRole("button",{name:"Apply Hiking preset"}).click();
+  await page.getByRole("tab",{name:"Features",exact:true}).click();
+  await expect(page.getByLabel("Forests & woodland theme colour")).toBeVisible();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  expect(requests).toBe(previousRequests);
 });

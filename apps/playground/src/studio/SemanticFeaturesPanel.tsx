@@ -108,8 +108,12 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,presetSettings,
         return <details key={key} className="atlas-feature-card">
           <summary>
             <span><strong>{label}</strong><small>{info.hint}</small></span>
-            <span className={"atlas-feature-support"+(available?" supported":"")}>
-              {!available?"Unavailable":edited?"Edited":support.exact>0?"In map style":"Provider-dependent"}
+            <span className="atlas-feature-meta">
+              <span className="atlas-feature-swatch" title="Theme feature colour"
+                aria-label={label+" theme colour"} style={{backgroundColor:color}}/>
+              <span className={"atlas-feature-support"+(available?" supported":"")}>
+                {!available?"Unavailable":edited?"Edited":support.exact>0?"In map style":"Provider-dependent"}
+              </span>
             </span>
           </summary>
           {available&&<div className="atlas-feature-fields">

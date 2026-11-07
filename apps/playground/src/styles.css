@@ -326,3 +326,7 @@
 .atlas-reset-confirm-button{border:1px solid #a7484c;border-radius:7px;background:#a7484c;color:#fff;padding:8px 10px;font-size:11px;font-weight:750}
 .atlas-reset-confirm-button:hover{background:#913a3d}
 @media(max-width:420px){.atlas-studio-heading-top{align-items:flex-start}.atlas-reset-everything-trigger{font-size:10px;padding:6px}}
+
+/* Theme-driven swatches remain visible for provider-unavailable categories. */
+.atlas-feature-card summary .atlas-feature-meta{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;flex-shrink:0}
+.atlas-feature-card summary .atlas-feature-swatch{display:inline-block;width:18px;height:18px;border-radius:5px;border:1px solid #2a385a22;box-shadow:inset 0 1px 1px #ffffff55;flex-shrink:0}
