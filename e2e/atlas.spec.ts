@@ -599,3 +599,56 @@ test("Atlas Lab navigation keeps the map mounted and allows text outline and hal
   await expect(page.locator(".atlas-preset-total")).toContainText("81 themes");
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 });
+
+test("Reset everything restores all Style Studio settings and retains map content",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+  await page.getByRole("button",{name:"Style studio"}).click();
+  const preset=page.getByRole("button",{name:"Apply Minimal Light preset"});
+  const paper=page.getByRole("button",{name:"Apply Paper & Ink preset"});
+  await paper.click();
+  await page.locator('input[aria-label="Rivers and water"]').fill("#123456");
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+  const roads=page.locator('input[aria-label="Primary Roads opacity"]');
+  const originalOpacity=await roads.inputValue();
+  await roads.fill("23");
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
+  await page.getByRole("button",{name:"All text halo show"}).click();
+  await expect(page.getByRole("combobox",{name:"Cities & major places halo"})).toHaveValue("show");
+  await page.getByRole("tab",{name:"Zoom",exact:true}).click();
+  await page.locator('input[aria-label="Tertiary connectors (Secondary) min zoom"]').fill("16");
+  await page.getByRole("tab",{name:"Layers",exact:true}).click();
+  await page.getByRole("button",{name:/fixture-dot/}).click();
+  await page.locator('input[aria-label="Layer color"]').fill("#887766");
+  await expect(page.getByText("1 overridden")).toBeVisible();
+  await page.getByRole("tab",{name:"Map setup",exact:true}).click();
+  await page.getByRole("button",{name:/High.*sharper/}).click();
+
+  // Opening the confirmation does not itself reset anything.
+  await page.getByRole("button",{name:"Reset everything"}).click();
+  await expect(page.getByRole("group",{name:"Confirm reset everything"})).toBeVisible();
+  await page.getByRole("button",{name:"Cancel reset"}).click();
+  await expect(page.getByRole("button",{name:/High.*sharper/})).toHaveClass(/selected/);
+  await page.getByRole("button",{name:"Reset everything"}).click();
+  await page.getByRole("button",{name:"Yes, reset everything"}).click();
+
+  await expect(page.getByRole("group",{name:"Confirm reset everything"})).toHaveCount(0);
+  await expect(page.getByRole("tab",{name:"Themes",exact:true})).toHaveAttribute("aria-selected","true");
+  await expect(preset).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator('input[aria-label="Rivers and water"]')).not.toHaveValue("#123456");
+  await expect(page.getByText("Custom theme",{exact:true})).toHaveCount(0);
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+  await expect(roads).not.toHaveValue("23");
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
+  await expect(page.getByRole("combobox",{name:"Cities & major places halo"})).toHaveValue("inherit");
+  await page.getByRole("tab",{name:"Zoom",exact:true}).click();
+  await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) min zoom"]')).not.toHaveValue("16");
+  await page.getByRole("tab",{name:"Layers",exact:true}).click();
+  await expect(page.getByText("0 overridden")).toBeVisible();
+  await page.getByRole("tab",{name:"Map setup",exact:true}).click();
+  await expect(page.getByRole("button",{name:/Balanced.*faster/})).toHaveClass(/selected/);
+  await expect(page.getByRole("button",{name:/Positron/})).toHaveClass(/selected/);
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
+});

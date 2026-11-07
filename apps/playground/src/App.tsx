@@ -128,7 +128,10 @@ export default function App(){
   const geocoder=useMemo(()=>createPhotonGeocoder(),[]);
   const [tab,setTab]=useState<Tab>("explore");
   const [styleSection,setStyleSection]=useState<StyleSection>("themes");
+  const [resetConfirmationOpen,setResetConfirmationOpen]=useState(false);
+  const [studioResetVersion,setStudioResetVersion]=useState(0);
   const switchStyleSection=(next:StyleSection)=>{
+    setResetConfirmationOpen(false);
     setStyleSection(next);
     inspectorScrollRef.current?.scrollTo({top:0,behavior:"instant"});
   };
@@ -260,6 +263,36 @@ export default function App(){
     setStudioDocument(base);
     log(colors?"Applied "+colors.length+"-colour palette to "+getAtlasPreset(basePresetId).name:
       "Restored "+getAtlasPreset(basePresetId).name+" original palette");
+  };
+  const resetEverything=()=>{
+    // The current loaded provider inventory may be different from the default
+    // Positron provider. The onStyleLayers callback will rebuild this baseline
+    // as soon as that provider has loaded.
+    const defaultDocument=studioCache.current.get(INITIAL_PRESET,null);
+    setStudioDocument({...defaultDocument,baseStyle:"positron"});
+    setActivePresetId(INITIAL_PRESET);
+    setBasePresetId(INITIAL_PRESET);
+    setCustomPalette(null);
+    setVectorTheme({...MINIMAL_THEME});
+    setDetailOverrides({roads:{},features:{}});
+    setAdvancedOverrides(createAdvancedOverrides());
+    setSemanticSettings(createSemanticFeatureSettings());
+    setStudioWarnings([]);
+
+    setRenderer("vector");
+    setVectorStyle("positron");
+    setQuality("balanced");
+    setAdaptiveResolution(true);
+    setBaseId("standard");
+    setCustomUrl("");
+    setCustomTiles(null);
+    setTileFilter("none");
+
+    setResetConfirmationOpen(false);
+    setStudioResetVersion(version=>version+1);
+    switchStyleSection("themes");
+    log("Reset all Style Studio customizations and display settings to Atlas defaults.");
+    // Markers, drawings, location and other non-Studio workspace data are preserved.
   };
   const editStudioDocument=(document:AtlasStyleDocument)=>{
     setActivePresetId(null);
@@ -488,9 +521,28 @@ export default function App(){
             </>}
             {tab==="styles"&&<>
               <div className="atlas-studio-heading">
-                <strong>Atlas Style Studio</strong>
+                <div className="atlas-studio-heading-top">
+                  <strong>Atlas Style Studio</strong>
+                  <button type="button" className="atlas-reset-everything-trigger"
+                    onClick={()=>setResetConfirmationOpen(true)}>
+                    <RotateCcw size={14}/> Reset everything
+                  </button>
+                </div>
                 <span>Change colours, road classes, map features and text without reloading the map.</span>
               </div>
+              {resetConfirmationOpen&&<section className="atlas-reset-confirmation"
+                role="group" aria-label="Confirm reset everything">
+                <strong>Restore the original Atlas Lab style?</strong>
+                <p>This resets the theme, palette, road and feature styling, typography effects,
+                  zoom rules, individual layer changes and map display settings.
+                  Pins, drawings and your current location on the map are preserved.</p>
+                <div className="atlas-reset-confirmation-actions">
+                  <button type="button" className="quiet-button"
+                    onClick={()=>setResetConfirmationOpen(false)}>Cancel reset</button>
+                  <button type="button" className="atlas-reset-confirm-button"
+                    onClick={resetEverything}>Yes, reset everything</button>
+                </div>
+              </section>}
               <div className="atlas-studio-tabs" role="tablist" aria-label="Style Studio sections">
                 {STYLE_SECTIONS.map(section=><button
                   type="button" role="tab" key={section.id}
@@ -543,9 +595,9 @@ export default function App(){
                   {" "}Changing the vector base above still reloads its distinct provider resources.
                 </div>
                 {styleSection==="themes"&&<>
-                  <PresetGallery activePresetId={activePresetId} basePresetId={basePresetId}
+                  <PresetGallery key={studioResetVersion} activePresetId={activePresetId} basePresetId={basePresetId}
                     palette={customPalette} onApply={choosePreset}/>
-                  <PaletteEditor presetId={basePresetId} colors={customPalette}
+                  <PaletteEditor key={studioResetVersion} presetId={basePresetId} colors={customPalette}
                     onChange={applyCustomPalette}/>
                 </>}
                 {styleSection==="roads"&&<>

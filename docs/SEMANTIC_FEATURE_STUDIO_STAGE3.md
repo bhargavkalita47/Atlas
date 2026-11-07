@@ -30,3 +30,14 @@ for crisp outlines and soft halos. Both render through MapLibre's
 No new tile source, raster layer or map instance is created for an ordinary
 style edit. Presets and old road controls remain intact. The work stays on
 `dev/semantic-features` until explicitly merged.
+
+## Reset everything
+
+Style Studio has a persistent **Reset everything** button with an explicit
+confirmation. It restores Minimal Light, the Positron vector provider, default
+palette, all road/detail/typography/halo/semantic-feature settings, individual
+layer overrides, zoom controls and map rendering options. It also clears
+custom raster URL and filters and returns to the Themes panel. The preset and
+palette editors are remounted to clear local authoring filters and inputs.
+Pins, drawings and map location are preserved; the action does not delete
+workspace data. Cancel leaves every setting unchanged.
