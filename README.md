@@ -1,60 +1,51 @@
 # Atlas
 
-A reusable, provider-independent mapping toolkit with an interactive testing playground.
+Atlas is a reusable TypeScript mapping toolkit with Atlas Lab, an interactive playground for testing maps and designing visual themes. It pairs MapLibre vector rendering with a Leaflet raster option and supports OpenStreetMap-derived tiles without a paid API key.
 
-**Status:** v0.2 vector styling preview, with an active stabilization branch (pre-release). This repo is deliberately separate from CivicWatch and Shikshak.
+**Stage:** pre-release. Atlas Lab is the current design and customisation surface. CivicWatch and Shikshak have their own map implementations.
+
+## Project timeline
+
+| Phase | What changed |
+| --- | --- |
+| 5 November 2026 · Mapping toolkit | Began as a way to reuse markers, shapes, geocoding and map interactions across products. Added MapLibre for editable vector maps, OpenFreeMap as the keyless vector tile source and Leaflet as the raster option. |
+| 5–6 November · Stabilisation | Split the renderers into on-demand chunks, selectively preloaded style assets, added cache rules for fingerprinted app assets and reduced rendering load on high-DPI devices. Preserved camera position across renderer changes and stabilised rapid zoom and mobile pinch interactions. |
+| 7 November · [Style Studio](https://github.com/bhargavkalita47/Atlas/commit/747f9deb) | Separated main roads from residential streets and bylanes at the feature level. Primary and Secondary controls now edit independent groups even where the source style mixes road classes in one layer. |
+| 7 November · [Semantic themes](https://github.com/bhargavkalita47/Atlas/commit/79628c75) | Merged 81 curated themes, searchable feature controls, independent label outline and halo controls, and task-based Studio tabs. Reset everything restores style defaults while keeping map content. |
+
+**Performance result.** Renderer splitting reduced minified initial application JavaScript from 1,503.31 kB to 269.01 kB, about 82%, in the recorded production builds. The MapLibre renderer, its browser worker and vector tiles are fetched separately. See the [build comparison](docs/PERFORMANCE.md).
+
+**Cartography problem.** Provider layer names alone could not distinguish all road classes. Atlas classifies features by OSM road class and splits mixed layers, allowing the two road groups to keep their own visibility, opacity and zoom styling.
 
 ## Repository layout
 
-- `packages/core` — geometry, geographic types and Photon/Nominatim geocoding.
-- `packages/react` — React adapters for Leaflet raster and MapLibre vector maps, marker and shape components.
-- `apps/playground` — Atlas Lab, a full-screen map feature-testing application.
+| Path | Responsibility |
+| --- | --- |
+| `packages/core` | Geographic types, geometry, GeoJSON and Photon/Nominatim geocoding |
+| `packages/style-core` | Provider-aware feature classification, style compilation, themes and custom overrides |
+| `packages/react` | React adapters for Leaflet raster and MapLibre vector maps, markers and shapes |
+| `apps/playground` | Atlas Lab, Style Studio and diagnostics |
 
 ## Local development
 
-Requires Node 22+.
+Use Node.js 22.12 or newer.
 
 ```sh
 npm install
-npm run dev  # builds SDK packages before launching playground
-npm run test
-npm run build
-npx playwright install chromium # first time only
-npm run test:e2e           # browser smoke tests
+npm run dev
+npm run check
+npx playwright install chromium
+npm run test:e2e
 ```
 
-The development server is at http://localhost:5173. The playground initializes the MapLibre v6 browser worker using the Vite `?worker&url` import before rendering the vector map. Applications using `@atlas/react/vector` must configure the MapLibre worker for their bundler (see `packages/react/README.md`).
+Vite prints the local URL, usually http://localhost:5173. The playground configures the MapLibre browser worker before mounting the vector map. If consuming `@atlas/react/vector` in another app, follow the [React adapter setup](packages/react/README.md) for your bundler.
 
-## Cloudflare deployment
+## Deployment
 
-A root `wrangler.jsonc` serves the playground as static assets. Connect this repository to Cloudflare Workers or Pages with:
-- Build command: `npm run build`
-- Build output directory (Pages): `apps/playground/dist`
-- Root directory: repository root
+The root [Wrangler config](wrangler.jsonc) serves the Lab assets. Build with `npm run build`. For a Cloudflare Pages build, the output directory is `apps/playground/dist`. For the Worker on `main`, use the repository’s `npm run deploy` script. Review feature branches with a separate Cloudflare preview.
 
-For Workers, deploy `npx wrangler deploy` after building **only from the production branch**.
+## Scope and attribution
 
-For the isolated `dev/stabilization` branch, the configured Cloudflare build uses `npx wrangler preview` rather than a production deploy. The root `wrangler.jsonc` includes a required `"previews": {}` block. This is supported by Wrangler 4.135.0+ and allows separate previews without overwriting production. If deploying manually on that branch:
+Atlas Lab supports theme editing, markers, geometry, measurement, geolocation, GeoJSON and diagnostics. Routing, offline tiles and application integration are outside this stage. OpenFreeMap hosts the public vector service, and the fallback uses public OSM raster tiles. Tile and geocoding providers have their own usage and attribution terms.
 
-```sh
-npm run build
-npx wrangler preview
-```
-
-The Cloudflare Workers build configuration should use `npm run build` as build command, and `npx wrangler preview` as preview deploy command. Public tile/geocoder endpoints still have separate usage policies.
-
-## Features available in the current preview
-
-Map pan/zoom, vector theme editing (land, water, parks, roads, buildings and labels), keyless vector tiles via OpenFreeMap, an OSM raster fallback, selectable and draggable markers, shapes and distance measurement, location search, reverse lookup, browser geolocation, GeoJSON export, event logging and diagnostics.
-
-**Limitations:** Vector color editing operates on identifiable layers in a supplied MapLibre style; some cartographic layers may require more detailed rules. 3D, offline tile packaging, road routing, private tile hosting, and full vector style JSON editing are not yet included. Public geocoding and tile endpoints do not provide a guaranteed SLA. No paid map API key is required for the testing playground.
-
-## Philosophy
-
-Atlas contains mapping capabilities, never CivicWatch or Shikshak business logic. Applications own their own data and permissions.
-
-## Licenses and attribution
-
-Atlas source is MIT licensed. Leaflet is BSD-2-Clause; MapLibre is BSD-3-Clause. OpenStreetMap data is available under ODbL and requires attribution. Photon and Nominatim are separate services with their own licenses and hosting policies. The playground's default editable vector map uses the third-party OpenFreeMap public instance, which requires no registration or API key. It remains a hosted service, not Atlas-owned infrastructure; self-hosting is optional. The public OSM raster service is not a production SLA. Do not proxy or bulk-fetch its tiles.
-
-See `LICENSE`, `docs/ARCHITECTURE.md`, `docs/STABILIZATION.md`, and `docs/PERFORMANCE.md` for details.
+Atlas source is [MIT licensed](LICENSE). Leaflet uses BSD-2-Clause, MapLibre uses BSD-3-Clause, and OpenStreetMap data is available under ODbL. See the [architecture notes](docs/ARCHITECTURE.md) for provider and application boundaries.
