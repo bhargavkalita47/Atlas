@@ -7,7 +7,7 @@ rivers and streams, POIs, boundaries, railway networks and terrain where
 available. This supplements, rather than replaces, the Stage 1 road and
 Stage 2 typography recipes.
 
-Every preset reuses its own nine semantic palette roles (land, water,
+Every preset has an explicit named feature tuning recipe (81 of 81), in addition to its family hierarchy. Each preset reuses its own nine semantic palette roles (land, water,
 parks, roads, buildings, labels, boundaries, transit and POIs). Palette
 reskins recalculate feature colours rather than retaining another theme's
 swatches. The themes share family-level hierarchy and category-aware
@@ -23,14 +23,27 @@ where useful, additional named tuning.
 - Expressive: colourful garden, landmark and city detail
 - Utility: high-visibility administrative and transport hierarchies
 
+Building outlines are explicit for editorial, travel, retro, expressive and
+utility families, while minimal and nature themes keep their provider outlines.
+The new semantic zoom profiles delay dense building footprints and local borders
+until useful scales, and introduce transport/health POIs before shopping/food.
+Theme-specific overrides can still bring forward category detail; provider
+min/max zoom and missing source data are never bypassed.
+
 Named themes refine the pattern: Hiking emphasises forest and terrain;
 Navigation emphasises transport stations; Maritime emphasises waterways;
 Transit Map emphasises rail; Survey emphasises boundary levels; Emergency
 emphasises hospitals; Blueprint enhances building outlines. Further named
-theme adjustments adapt season, region, mood, era and purpose.
+theme adjustments adapt season, region, mood, era and purpose. All 17 styles
+previously relying solely on family defaults now have deliberate refinements,
+including Pastel City, Graphite Mono, Terra, High Contrast, Mist, Porcelain,
+Ash Blue, Chalkboard, Paper Slate, Alabaster, Burgundy Print, Night Editorial,
+Seventies Orange, Obsidian, Bubblegum, Peach and Mint Pop.
 
 Tokyo Neon's requested road-style revert and its previous text-halo
-behaviour remain intact. It gains Stage 3 feature colours but **not**
+behaviour remain intact. The retro CRT, Eighties Grid and Arcade themes use
+controlled city/locality glows, while archival print maps retain crisp outlines
+and Film Noir stays unglowed. Tokyo Neon gains Stage 3 feature colours but **not**
 the reverted Tokyo-only roadway changes.
 
 ## Manual controls
