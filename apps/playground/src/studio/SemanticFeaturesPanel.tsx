@@ -1,7 +1,7 @@
 import {useMemo,useState} from "react";
 import {
   SEMANTIC_FAMILIES,SEMANTIC_FEATURES,SEMANTIC_KEYS,
-  inspectSemanticCoverage,createSemanticFeatureSettings,
+  inspectSemanticCoverage,
   type SemanticFamily,type SemanticFeature,type SemanticStyleSettings,
   type StyleLayerDescriptor,type FeatureDesign
 } from "@atlas/style-core";
@@ -35,10 +35,12 @@ type Props={
   layers:readonly StyleLayerDescriptor[];
   baseStyle:unknown;
   settings:SemanticStyleSettings;
+  presetSettings:SemanticStyleSettings;
   onChange:(next:SemanticStyleSettings)=>void;
+  onReset:()=>void;
 };
 function tri(v:boolean|null):string{return v===null?"inherit":v?"show":"hide";}
-export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props){
+export function SemanticFeaturesPanel({layers,baseStyle,settings,presetSettings,onChange,onReset}:Props){
   const [family,setFamily]=useState<SemanticFamily>("architecture");
   const [query,setQuery]=useState("");
   const coverage=useMemo(()=>inspectSemanticCoverage(layers,baseStyle),[layers,baseStyle]);
@@ -55,7 +57,8 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
   const change=(key:SemanticFeature,values:Partial<FeatureDesign>)=>{
     onChange({...settings,[key]:{...settings[key],...values}});
   };
-  const reset=()=>onChange(createSemanticFeatureSettings());
+  const reset=onReset;
+  const changed=SEMANTIC_KEYS.filter(k=>JSON.stringify(settings[k])!==JSON.stringify(presetSettings[k])).length;
   const listed=SEMANTIC_KEYS.filter(key=>
     SEMANTIC_FEATURES[key].family===family&&
     (!query.trim()||[SEMANTIC_FEATURES[key].name,SEMANTIC_FEATURES[key].hint]
@@ -65,9 +68,10 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
   return <section className="pane-section atlas-features-panel" aria-label="Feature styling studio">
     <div className="section-heading">
       <div className="section-label"><Layers3 size={15}/> FEATURE STYLING</div>
-      <button type="button" className="quiet-button" onClick={reset}><RotateCcw size={13}/> Reset features</button>
+      <button type="button" className="quiet-button" onClick={reset}><RotateCcw size={13}/> Reset feature edits</button>
     </div>
-    <p className="atlas-detail-intro">Style only the geographic categories exposed by this map provider. A shared source layer is matched by each feature's class, so changing forests does not recolour grassland or parks.</p>
+    <p className="atlas-detail-intro">Every theme now has its own feature palette, hierarchy, density and detail rules. Switch themes to adopt its design; edits you make here remain yours until reset. Only categories exposed by this map provider can be drawn.</p>
+    <div className="atlas-detail-subline" role="status" aria-label="Manual feature edits">{changed} feature categories manually adjusted · Other values follow the selected theme.</div>
     <div className="atlas-feature-summary" role="status">
       <strong>{supported} / {SEMANTIC_KEYS.length}</strong> feature categories available or potentially supported
     </div>
@@ -89,6 +93,8 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
       {listed.length===0&&<div className="muted-tip">No features match this search.</div>}
       {listed.map(key=>{
         const cfg=settings[key],info=SEMANTIC_FEATURES[key],support=coverage[key];
+        const presetCfg=presetSettings[key];
+        const edited=JSON.stringify(cfg)!==JSON.stringify(presetCfg);
         const available=support.layers>0;
         const isLine=lineKeys.has(key)&&(
           key!=="terrain"||kinds.some(l=>l.sourceLayer==="contour"&&l.type==="line"));
@@ -103,15 +109,20 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
           <summary>
             <span><strong>{label}</strong><small>{info.hint}</small></span>
             <span className={"atlas-feature-support"+(available?" supported":"")}>
-              {!available?"Unavailable":support.exact>0?"In map style":"Provider-dependent"}
+              {!available?"Unavailable":edited?"Edited":support.exact>0?"In map style":"Provider-dependent"}
             </span>
           </summary>
           {available&&<div className="atlas-feature-fields">
+            {edited&&<button className="quiet-button" type="button"
+              aria-label={label+" restore theme settings"}
+              onClick={()=>onChange({...settings,[key]:JSON.parse(JSON.stringify(presetCfg)) as FeatureDesign})}>
+              <RotateCcw size={12}/> Restore this feature to theme
+            </button>}
             <label className="atlas-design-control atlas-feature-color">
               <span>{colorLabel}</span>
               <input type="checkbox" aria-label={label+" custom colour"}
                 checked={cfg.color!==null}
-                onChange={e=>change(key,{color:e.target.checked?color:null})}/>
+                onChange={e=>change(key,{color:e.target.checked?presetCfg.color??color:null})}/>
               <input type="color" aria-label={label+" colour"} value={color}
                 disabled={cfg.color===null} onChange={e=>change(key,{color:e.target.value})}/>
             </label>
@@ -126,7 +137,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
               <div className="atlas-feature-range-header">
                 <span>Opacity</span>
                 <label><input type="checkbox" aria-label={label+" custom opacity"} checked={cfg.opacity!==null}
-                  onChange={e=>change(key,{opacity:e.target.checked?100:null})}/> Custom</label>
+                  onChange={e=>change(key,{opacity:e.target.checked?presetCfg.opacity??100:null})}/> Style</label>
                 <output>{cfg.opacity===null?"Preset":cfg.opacity+"%"}</output>
               </div>
               <input type="range" min="0" max="100" step="1" value={cfg.opacity??100}
@@ -137,7 +148,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
               <div className="atlas-feature-range-header">
                 <span>Stroke width</span>
                 <label><input type="checkbox" aria-label={label+" custom width"} checked={cfg.width!==null}
-                  onChange={e=>change(key,{width:e.target.checked?2:null})}/> Custom</label>
+                  onChange={e=>change(key,{width:e.target.checked?presetCfg.width??2:null})}/> Style</label>
                 <output>{cfg.width===null?"Preset":cfg.width+" px"}</output>
               </div>
               <input type="range" min=".25" max="20" step=".25" value={cfg.width??2}
@@ -147,7 +158,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
             {isFill&&<label className="atlas-design-control atlas-feature-color">
               <span>Outline colour</span>
               <input type="checkbox" checked={cfg.outlineColor!==null} aria-label={label+" custom outline"}
-                onChange={e=>change(key,{outlineColor:e.target.checked?"#677B8B":null})}/>
+                onChange={e=>change(key,{outlineColor:e.target.checked?presetCfg.outlineColor??"#677B8B":null})}/>
               <input type="color" disabled={cfg.outlineColor===null} aria-label={label+" outline colour"}
                 value={cfg.outlineColor??"#677B8B"} onChange={e=>change(key,{outlineColor:e.target.value})}/>
             </label>}
@@ -161,7 +172,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
             {isIcon&&<div className="atlas-feature-range">
               <div className="atlas-feature-range-header"><span>Icon size</span>
                 <label><input type="checkbox" aria-label={label+" custom icon size"} checked={cfg.iconSize!==null}
-                  onChange={e=>change(key,{iconSize:e.target.checked?1:null})}/> Custom</label>
+                  onChange={e=>change(key,{iconSize:e.target.checked?presetCfg.iconSize??1:null})}/> Style</label>
                 <output>{cfg.iconSize===null?"Preset":cfg.iconSize+"×"}</output>
               </div>
               <input type="range" min=".5" max="3" step=".1"
@@ -171,7 +182,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
             {isExtrusion&&<div className="atlas-feature-range">
               <div className="atlas-feature-range-header"><span>3D height multiplier</span>
                 <label><input type="checkbox" aria-label={label+" custom height"} checked={cfg.heightScale!==null}
-                  onChange={e=>change(key,{heightScale:e.target.checked?1:null})}/> Custom</label>
+                  onChange={e=>change(key,{heightScale:e.target.checked?presetCfg.heightScale??1:null})}/> Style</label>
                 <output>{cfg.heightScale===null?"Preset":cfg.heightScale+"×"}</output>
               </div>
               <input type="range" min=".25" max="3" step=".05"

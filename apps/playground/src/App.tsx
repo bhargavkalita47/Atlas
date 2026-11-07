@@ -17,7 +17,8 @@ import {
   getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
   applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
   applyAdvancedStyleControls,getAtlasPresetAdvancedSettings,
-  createSemanticFeatureSettings,applySemanticFeatureControls,
+  applySemanticFeatureControls,
+  getAtlasPresetSemanticSettings,createSemanticOverrides,mergeSemanticOverrides,deriveSemanticOverrides,
   createAdvancedOverrides,mergeAdvancedOverrides,deriveAdvancedOverrides,
   type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides,type AdvancedOverrides
 } from "@atlas/style-core";
@@ -161,7 +162,7 @@ export default function App(){
   const [detailOverrides,setDetailOverrides]=useState<MapDetailOverrides>(()=>({roads:{},features:{}}));
   const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
   const [advancedOverrides,setAdvancedOverrides]=useState<AdvancedOverrides>(()=>createAdvancedOverrides());
-  const [semanticSettings,setSemanticSettings]=useState(()=>createSemanticFeatureSettings());
+  const [semanticOverrides,setSemanticOverrides]=useState(()=>createSemanticOverrides());
   const studioCache=useRef(new StudioPresetCache());
   const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
@@ -218,6 +219,28 @@ export default function App(){
   const changeAdvancedSettings=(next:typeof advancedSettings)=>
     setAdvancedOverrides(deriveAdvancedOverrides(presetAdvancedSettings,next));
   const resetAdvancedSettings=()=>setAdvancedOverrides(createAdvancedOverrides());
+  const presetSemanticSettings=useMemo(()=>{
+    const preset=getAtlasPreset(basePresetId);
+    const groups=studioDocument.groups;
+    return getAtlasPresetSemanticSettings(basePresetId,{
+      land:groups.land?.color??preset.palette.land,
+      water:groups.water?.color??preset.palette.water,
+      parks:groups.parks?.color??preset.palette.parks,
+      roads:groups.roads?.color??preset.palette.roads,
+      buildings:groups.buildings?.color??preset.palette.buildings,
+      labels:groups.labels?.color??preset.palette.labels,
+      boundaries:groups.boundaries?.color??preset.palette.boundaries,
+      transit:groups.transit?.color??preset.palette.transit,
+      poi:groups.poi?.color??preset.palette.poi
+    });
+  },[basePresetId,studioDocument]);
+  const semanticSettings=useMemo(
+    ()=>mergeSemanticOverrides(presetSemanticSettings,semanticOverrides),
+    [presetSemanticSettings,semanticOverrides]
+  );
+  const changeSemanticSettings=(next:typeof semanticSettings)=>
+    setSemanticOverrides(deriveSemanticOverrides(presetSemanticSettings,next));
+  const resetSemanticSettings=()=>setSemanticOverrides(createSemanticOverrides());
   const detailStyleDocument=useMemo(()=>applyMapDetailControls(
     studioDocument,studioLayers,detailSettings,mapBaseStyle
   ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
@@ -276,7 +299,7 @@ export default function App(){
     setVectorTheme({...MINIMAL_THEME});
     setDetailOverrides({roads:{},features:{}});
     setAdvancedOverrides(createAdvancedOverrides());
-    setSemanticSettings(createSemanticFeatureSettings());
+    setSemanticOverrides(createSemanticOverrides());
     setStudioWarnings([]);
 
     setRenderer("vector");
@@ -610,7 +633,8 @@ export default function App(){
                 </>}
                 {styleSection==="features"&&<SemanticFeaturesPanel
                   layers={studioLayers} baseStyle={mapBaseStyle} settings={semanticSettings}
-                  onChange={setSemanticSettings}/>}
+                  presetSettings={presetSemanticSettings} onChange={changeSemanticSettings}
+                  onReset={resetSemanticSettings}/>}
                 {styleSection==="typography"&&<TypographyPanel settings={advancedSettings}
                   onChange={changeAdvancedSettings} baseStyle={mapBaseStyle}
                   presetColor={vectorTheme.labels}/>}

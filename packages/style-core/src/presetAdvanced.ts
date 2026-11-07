@@ -7,7 +7,7 @@ import {createAdvancedStyleSettings,LABEL_ROLES,
 import {ROAD_TIERS,DETAIL_FEATURES,type RoadTier,type DetailFeature} from "./detailControls";
 
 /** Curated cartographic design profile version 3: road paint, type and zoom. */
-export const ATLAS_ADVANCED_PROFILE_VERSION=3 as const;
+export const ATLAS_ADVANCED_PROFILE_VERSION=4 as const;
 
 export type AdvancedPaletteOverrides=Partial<Record<"land"|"roads"|"labels"|"water"|"parks"|"buildings",string>>;
 export type AdvancedOverrides={
@@ -251,6 +251,23 @@ export function getAtlasPresetAdvancedSettings(id:string,paletteOverride:Advance
       mix(colors.labels,colors.land,role==="road"?.18:role==="poi"?.13:.10);
     item.spacing=role==="city"?family.spacing:
       role==="locality"?round(family.spacing*.5,.005):null;
+    // The theme's typography now owns its outline/halo aesthetic.
+    // Keep Tokyo Neon's original halo behavior from the requested revert.
+    if(id!=="tokyo-neon"){
+      const crisp=["editorial","travel","retro","utility"].includes(preset.family)||
+        preset.family==="expressive"&&id!=="electric-night";
+      const glow=preset.family==="futuristic"||
+        preset.family==="expressive"&&isLightMapSurface(colors.land)===false;
+      item.outline=crisp;
+      item.halo=glow&&(role==="city"||role==="locality"||role==="road");
+      if(preset.family==="minimal"||preset.family==="nature"){
+        item.outline=false;item.halo=false;
+      }
+      if(id==="blueprint"){item.outline=true;item.halo=false;}
+      if(id==="high-contrast"||id==="accessibility-dark"||id==="accessibility-light"){
+        item.outline=true;item.halo=false;
+      }
+    }
   }
   result.labels.city.zoom.min=5;
   result.labels.locality.zoom.min=preset.family==="minimal"?11:9;
