@@ -8,6 +8,7 @@ import { escapeHtml, safeHex, validPoint } from "@atlas/core";
 import type { AtlasMapHandle, ViewState } from "./index";
 import type {AtlasStyleDocument,StyleLayerDescriptor,StyleDiagnostic,JsonRecord} from "@atlas/style-core";
 import {applyAtlasStyleDocument,editableLayerInventory} from "./styleRuntime";
+import {exportVectorPng,exportVectorSvg} from "./mapExport";
 import {basePixelRatio,createAdaptiveResolutionController,type AdaptiveResolutionController,type ResolutionState} from "./adaptiveResolution";
 export type {ResolutionState} from "./adaptiveResolution";
 
@@ -195,6 +196,8 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   const host=useRef<HTMLDivElement>(null);
   const map=useRef<MapLibreMap|null>(null);
   const markerElements=useRef(new Map<string,ManagedMarker>());
+  const exportMarkers=useRef(markers);
+  exportMarkers.current=markers;
   const currentStyleUrl=useRef(styleUrl);
   const restartStyleWatchdog=useRef<(()=>void)|null>(null);
   const reportFatalStyleError=useRef<((message:string)=>void)|null>(null);
@@ -489,6 +492,13 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
     zoomIn(){map.current?.zoomIn();},
     zoomOut(){map.current?.zoomOut();},
     getView(){return map.current?viewOf(map.current):null;},
+    async exportMap(format){
+      const active=map.current;
+      if(!active)throw new Error("Map is not ready for export.");
+      return format==="svg"
+        ?exportVectorSvg(active,exportMarkers.current)
+        :exportVectorPng(active,exportMarkers.current);
+    },
   }),[]);
   return <div className={["atlas-map","atlas-vector-map",className].filter(Boolean).join(" ")} style={style}>
     <div ref={host} className="atlas-map-host" style={{position:"absolute",inset:0}}/>

@@ -1,7 +1,7 @@
 name: Atlas verify
 on:
   push:
-    branches: [main, dev/style-studio, dev/semantic-features]
+    branches: [main, dev/style-studio, dev/semantic-features, export-test]
   pull_request:
 jobs:
   verify:

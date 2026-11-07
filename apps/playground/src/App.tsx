@@ -14,7 +14,8 @@ import {
 import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
 import {
   STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
-  getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
+  getAtlasPresetCoreColors,reskinAtlasPreset,
+  createAtlasThemeBundle,parseAtlasThemeBundle,stringifyAtlasThemeBundle,
   applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
   applyAdvancedStyleControls,getAtlasPresetAdvancedSettings,
   applySemanticFeatureControls,
@@ -89,7 +90,8 @@ const STYLE_SECTIONS=[
   {id:"typography",label:"Typography",hint:"Labels & halos"},
   {id:"detail",label:"Zoom",hint:"Reveal by scale"},
   {id:"layers",label:"Layers",hint:"Individual layers"},
-  {id:"setup",label:"Map setup",hint:"Provider & quality"}
+  {id:"setup",label:"Map setup",hint:"Provider & quality"},
+  {id:"export",label:"Export",hint:"PNG, SVG & portable JSON"}
 ] as const;
 type StyleSection=typeof STYLE_SECTIONS[number]["id"];
 type Mode="inspect"|"pin"|"line"|"polygon"|"circle"|"measure";
@@ -115,6 +117,12 @@ function readMarkers():MarkerData[]{
       return typeof m.id==="string"&&typeof m.title==="string"&&validPoint(m.point);
     }).map(m=>({...m,title:m.title.slice(0,120),draggable:true}));
   }catch{return INITIAL;}
+}
+function downloadBlob(name:string,blob:Blob){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function downloadText(name:string,content:string){
   const blob=new Blob([content],{type:"application/geo+json"});
@@ -183,6 +191,8 @@ export default function App(){
   const searchSequence=useRef(0);
   const reverseSequence=useRef(0);
   const importRef=useRef<HTMLInputElement>(null);
+  const themeImportRef=useRef<HTMLInputElement>(null);
+  const [exportBusy,setExportBusy]=useState<"png"|"svg"|null>(null);
   const uid=useRef(20);
   const nextId=()=>String(++uid.current)+"-"+Date.now().toString(36);
   const captureVectorMetric=useCallback((event:VectorPerformanceEvent)=>{
@@ -286,6 +296,50 @@ export default function App(){
     setStudioDocument(base);
     log(colors?"Applied "+colors.length+"-colour palette to "+getAtlasPreset(basePresetId).name:
       "Restored "+getAtlasPreset(basePresetId).name+" original palette");
+  };
+  const exportTheme=()=>{
+    if(renderer!=="vector")return alert("Switch to the vector renderer to export its editable theme.");
+    try{
+      const bundle=createAtlasThemeBundle({
+        presetId:basePresetId,vectorStyle,document:studioDocument,customPalette,
+        detailOverrides,advancedOverrides,semanticOverrides
+      });
+      downloadBlob("atlas-theme-v1.json",new Blob([stringifyAtlasThemeBundle(bundle)],{type:"application/json"}));
+      log("Exported portable Atlas theme v1 with road, feature, typography and zoom overrides.");
+    }catch(error){alert("Theme export failed: "+(error instanceof Error?error.message:String(error)));}
+  };
+  const importTheme=async(file:File)=>{
+    try{
+      if(file.size>2_000_000)throw new Error("Theme file exceeds the 2 MB limit.");
+      const bundle=parseAtlasThemeBundle(await file.text());
+      const fallback=getAtlasPresetCoreColors(bundle.presetId);
+      const theme=Object.fromEntries((["land","water","parks","roads","buildings","labels"] as const)
+        .map(key=>[key,bundle.document.groups[key]?.color??fallback[key]])) as VectorTheme;
+      setActivePresetId(null);
+      setBasePresetId(bundle.presetId);
+      setCustomPalette(bundle.customPalette);
+      setStudioDocument(bundle.document);
+      setVectorTheme(theme);
+      setDetailOverrides(bundle.detailOverrides);
+      setAdvancedOverrides(bundle.advancedOverrides);
+      setSemanticOverrides(bundle.semanticOverrides);
+      setStudioWarnings([]);
+      setVectorStyle(bundle.vectorStyle);
+      setRenderer("vector");
+      alert("Atlas theme imported. Your map location, pins and drawings were preserved.");
+    }catch(error){alert("Theme import failed: "+(error instanceof Error?error.message:String(error)));}
+  };
+  const exportImage=async(format:"png"|"svg")=>{
+    if(renderer!=="vector"||!map.current?.exportMap)
+      return alert("PNG and SVG capture require the vector map to be ready.");
+    if(exportBusy)return;
+    setExportBusy(format);
+    try{
+      const image=await map.current.exportMap(format);
+      downloadBlob("atlas-map."+format,image);
+      log("Exported current map viewport as "+format.toUpperCase());
+    }catch(error){alert(format.toUpperCase()+" export failed: "+(error instanceof Error?error.message:String(error)));}
+    finally{setExportBusy(null);}
   };
   const resetEverything=()=>{
     // The current loaded provider inventory may be different from the default
@@ -656,17 +710,48 @@ export default function App(){
                         }});
                       }}/>
                   </label>)}</div>
-                  <button className="secondary-button" onClick={()=>{
-                    downloadText("atlas-style-v2.json",stringifyAtlasStyleDocument(effectiveStyleDocument));
-                    log("Exported Atlas style document v2");
-                  }}><Download size={16}/> Export editable style JSON (v2)</button>
+                  <button className="secondary-button" onClick={()=>switchStyleSection("export")}><Download size={16}/> Export theme or map</button>
                   <div className="muted-tip">Presets apply immediately. Changing a colour or individual layer creates a Custom theme without altering the original preset. Layer bindings depend on the loaded vector style.</div>
                 </section>}
                 {styleSection==="layers"&&<LayerEditor layers={studioLayers}
                   document={studioDocument} onChange={editStudioDocument}/>}
                 {studioWarnings.length>0&&<section className="pane-section"><div className="section-label">STYLE DIAGNOSTICS</div><div className="muted-tip">{studioWarnings.slice(0,3).join(" · ")}</div></section>}
               </>}
-              {renderer==="raster"&&styleSection!=="setup"&&
+              {styleSection==="export"&&<>
+                <section className="pane-section">
+                  <div className="section-label">MAP IMAGE EXPORT</div>
+                  <div className="action-list">
+                    <button type="button" disabled={renderer!=="vector"||exportBusy!==null}
+                      onClick={()=>void exportImage("png")}>
+                      <Download size={18}/><div><strong>{exportBusy==="png"?"Rendering PNG…":"Export PNG"}</strong>
+                      <small>Current map viewport, pins and attribution; screen resolution</small></div><ArrowRight size={16}/>
+                    </button>
+                    <button type="button" disabled={renderer!=="vector"||exportBusy!==null}
+                      onClick={()=>void exportImage("svg")}>
+                      <Download size={18}/><div><strong>{exportBusy==="svg"?"Rendering SVG…":"Export SVG"}</strong>
+                      <small>Vector map paths where supported; editable in vector tools</small></div><ArrowRight size={16}/>
+                    </button>
+                  </div>
+                  <div className="muted-tip">Exports capture the current vector viewport, not the whole planet. Complex terrain, symbol placement and provider fonts can differ in SVG. Raster fallback is not exportable yet.</div>
+                </section>
+                <section className="pane-section">
+                  <div className="section-label">PORTABLE THEME JSON</div>
+                  <div className="action-list">
+                    <button type="button" disabled={renderer!=="vector"} onClick={exportTheme}>
+                      <Download size={18}/><div><strong>Export Atlas theme JSON</strong>
+                      <small>Colors, road classes, features, labels, halos, zoom and layer edits</small></div><ArrowRight size={16}/>
+                    </button>
+                    <button type="button" onClick={()=>themeImportRef.current?.click()}>
+                      <Upload size={18}/><div><strong>Import Atlas theme JSON</strong>
+                      <small>Restore and test the exported style in Atlas Lab</small></div><ArrowRight size={16}/>
+                    </button>
+                  </div>
+                  <input ref={themeImportRef} type="file" accept=".json,application/json" hidden
+                    onChange={e=>{const file=e.target.files?.[0];if(file)void importTheme(file);e.target.value="";}}/>
+                  <div className="muted-tip">Theme JSON v1 is renderer-independent configuration for Atlas vector integrations. It does not include tiles, API credentials, map location or sandbox markers. Importing retains your existing map data. Other projects must use the Atlas theme adapter to apply it.</div>
+                </section>
+              </>}
+              {renderer==="raster"&&styleSection!=="setup"&&styleSection!=="export"&&
                 <div className="muted-tip">Raster tiles do not support feature-level styling. Open Map setup to select Vector mode.</div>}
               {renderer==="raster"&&styleSection==="setup"&&<>
                 <section className="pane-section"><div className="section-label">RASTER TILE SOURCE</div>
@@ -764,7 +849,8 @@ export default function App(){
                   if(activePresetId){
                     return studioCache.current.get(activePresetId,customPalette);
                   }
-                  return {...old,baseStyle:vectorStyle,bindings:bindingsFor(layers),
+                  return {...old,baseStyle:vectorStyle,
+                    bindings:old.baseStyle===vectorStyle&&Object.keys(old.bindings).length?old.bindings:bindingsFor(layers),
                     layers:old.baseStyle===vectorStyle?old.layers:{}};
                 });
               }}
@@ -828,6 +914,7 @@ export default function App(){
           </div>
           <div className="map-top-right">
             <span className="map-provider-label"><span className="online-dot"/> {renderer==="vector"?"KEYLESS VECTOR":"OSM RASTER"}</span>
+            <button title="Export map or theme" aria-label="Export map or theme" onClick={()=>{switchTab("styles");switchStyleSection("export");}}><Download size={18}/></button>
             <button title="Map layers" onClick={()=>switchTab("styles")}><Layers3 size={19}/></button>
           </div>
           <div className="map-actions">

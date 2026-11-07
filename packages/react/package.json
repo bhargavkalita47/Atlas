@@ -32,7 +32,8 @@
   "dependencies": {
     "@atlas/core": "0.1.0",
     "leaflet": "^1.9.4",
-    "@atlas/style-core": "0.1.0"
+    "@atlas/style-core": "0.1.0",
+    "@versatiles/svg-renderer": "^2.4.2"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
