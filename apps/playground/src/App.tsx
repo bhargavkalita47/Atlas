@@ -17,6 +17,7 @@ import {
   getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
   applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
   applyAdvancedStyleControls,getAtlasPresetAdvancedSettings,
+  createSemanticFeatureSettings,applySemanticFeatureControls,
   createAdvancedOverrides,mergeAdvancedOverrides,deriveAdvancedOverrides,
   type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides,type AdvancedOverrides
 } from "@atlas/style-core";
@@ -25,6 +26,7 @@ import {PaletteEditor} from "./studio/PaletteEditor";
 import {LayerEditor} from "./studio/LayerEditor";
 import {StudioPresetCache} from "./studio/studioCache";
 import {MapDetailPanel} from "./studio/MapDetailPanel";
+import {SemanticFeaturesPanel} from "./studio/SemanticFeaturesPanel";
 import {AdvancedRoadPanel,TypographyPanel,ZoomDetailPanel} from "./studio/AdvancedStylePanels";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
@@ -79,6 +81,16 @@ const NAV=[
   {id:"diagnostics",label:"Diagnostics",icon:Activity}
 ] as const;
 type Tab=typeof NAV[number]["id"];
+const STYLE_SECTIONS=[
+  {id:"themes",label:"Themes",hint:"Presets & colours"},
+  {id:"roads",label:"Roads",hint:"Arteries & lanes"},
+  {id:"features",label:"Features",hint:"Land, water & POIs"},
+  {id:"typography",label:"Typography",hint:"Labels & halos"},
+  {id:"detail",label:"Zoom",hint:"Reveal by scale"},
+  {id:"layers",label:"Layers",hint:"Individual layers"},
+  {id:"setup",label:"Map setup",hint:"Provider & quality"}
+] as const;
+type StyleSection=typeof STYLE_SECTIONS[number]["id"];
 type Mode="inspect"|"pin"|"line"|"polygon"|"circle"|"measure";
 const DRAW_TOOLS:{id:Mode;name:string;hint:string;icon:typeof MapPin}[]=[
   {id:"inspect",name:"Inspect",hint:"Click for a place name",icon:MousePointer2},
@@ -114,6 +126,7 @@ export default function App(){
   const map=useRef<AtlasMapHandle>(null);
   const geocoder=useMemo(()=>createPhotonGeocoder(),[]);
   const [tab,setTab]=useState<Tab>("explore");
+  const [styleSection,setStyleSection]=useState<StyleSection>("themes");
   const [mobileMenu,setMobileMenu]=useState(false);
   const [collapsed,setCollapsed]=useState(false);
   const [mode,setMode]=useState<Mode>("inspect");
@@ -140,6 +153,7 @@ export default function App(){
   const [detailOverrides,setDetailOverrides]=useState<MapDetailOverrides>(()=>({roads:{},features:{}}));
   const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
   const [advancedOverrides,setAdvancedOverrides]=useState<AdvancedOverrides>(()=>createAdvancedOverrides());
+  const [semanticSettings,setSemanticSettings]=useState(()=>createSemanticFeatureSettings());
   const studioCache=useRef(new StudioPresetCache());
   const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
@@ -199,9 +213,12 @@ export default function App(){
   const detailStyleDocument=useMemo(()=>applyMapDetailControls(
     studioDocument,studioLayers,detailSettings,mapBaseStyle
   ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
-  const effectiveStyleDocument=useMemo(()=>applyAdvancedStyleControls(
+  const advancedDocument=useMemo(()=>applyAdvancedStyleControls(
     detailStyleDocument,studioLayers,advancedSettings,mapBaseStyle
   ),[detailStyleDocument,studioLayers,advancedSettings,mapBaseStyle]);
+  const effectiveStyleDocument=useMemo(()=>applySemanticFeatureControls(
+    advancedDocument,studioLayers,semanticSettings,mapBaseStyle
+  ),[advancedDocument,studioLayers,semanticSettings,mapBaseStyle]);
   const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
   const colorsForDocument=(document:AtlasStyleDocument):VectorTheme=>{
     const fallback=getAtlasPresetCoreColors(basePresetId);
@@ -465,14 +482,32 @@ export default function App(){
               <div className="muted-tip">Measurements are spherical straight-line distances, not walking or driving directions.</div>
             </>}
             {tab==="styles"&&<>
-              <section className="pane-section"><div className="section-label">RENDER ENGINE</div>
+              <div className="atlas-studio-heading">
+                <strong>Atlas Style Studio</strong>
+                <span>Change colours, road classes, map features and text without reloading the map.</span>
+              </div>
+              <div className="atlas-studio-tabs" role="tablist" aria-label="Style Studio sections">
+                {STYLE_SECTIONS.map(section=><button
+                  type="button" role="tab" key={section.id}
+                  aria-selected={styleSection===section.id}
+                  className={"atlas-studio-tab"+(styleSection===section.id?" active":"")}
+                  onClick={()=>setStyleSection(section.id)}>
+                  {section.label}
+                </button>)}
+              </div>
+              <div className="atlas-studio-quick">
+                <button type="button" onClick={()=>setStyleSection("themes")}>Browse 81 themes</button>
+                <button type="button" onClick={()=>setStyleSection("features")}>Style map features</button>
+                <button type="button" onClick={()=>setStyleSection("typography")}>Text halo & outline</button>
+              </div>
+              {styleSection==="setup"&&<section className="pane-section"><div className="section-label">RENDER ENGINE</div>
                 <div className="filter-options">
                   <button className={renderer==="vector"?"selected":""} onPointerEnter={warmVectorEngine} onFocus={warmVectorEngine} onClick={()=>setRenderer("vector")}>Vector · editable</button>
                   <button className={renderer==="raster"?"selected":""} onClick={()=>setRenderer("raster")}>Raster · fallback</button>
                 </div>
                 <div className="muted-tip">Vector mode uses MapLibre and keyless OSM-derived tiles. Raster fallback uses standard OpenStreetMap tiles. Neither requires a paid API key.</div>
               </section>
-              {renderer==="vector"&&<section className="pane-section">
+              {renderer==="vector"&&styleSection==="setup"&&<section className="pane-section">
                 <div className="section-label">RENDERING QUALITY</div>
                 <div className="filter-options">
                   <button className={quality==="balanced"?"selected":""} onClick={()=>setQuality("balanced")}>Balanced · faster</button>
@@ -485,7 +520,7 @@ export default function App(){
                 <div className="muted-tip">When enabled, Atlas lowers resolution during long mouse drags, restoring quality when movement stops. Touch gestures keep a stable canvas resolution to prevent pinch-zoom freezes. Map detail and tiles stay unchanged.</div>
               </section>}
               {renderer==="vector"&&<>
-                <section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
+                {styleSection==="setup"&&<section className="pane-section"><div className="section-label">KEYLESS VECTOR STARTING STYLES</div>
                   <div className="basemap-grid">{VECTOR_STYLES.map(t=><button
                     key={t.id} className={"basemap-card basemap-"+(t.id==="dark"?"dark":"light")+(vectorStyle===t.id?" selected":"")}
                     onPointerEnter={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
@@ -495,27 +530,37 @@ export default function App(){
                     <strong>{t.name}</strong><small>{t.tag}</small>{vectorStyle===t.id&&<Check size={16} className="basemap-check"/>}
                   </button>)}</div>
                   <div className="muted-tip">Hosted by OpenFreeMap, an open-source OSM-derived tile system. No account or key. Self-hosting can be configured later.</div>
-                </section>
+                </section>}
                 <div className="muted-tip" role="status" aria-label="Atlas preset cache status">
                   {preparedPresets>0
                     ?preparedPresets+" presets prepared in memory for "+vectorStyle+" · selecting a theme will not reload tiles."
                     :"Preparing Studio preset cache from the loaded vector map…"}
                   {" "}Changing the vector base above still reloads its distinct provider resources.
                 </div>
-                <PresetGallery activePresetId={activePresetId} basePresetId={basePresetId}
-                  palette={customPalette} onApply={choosePreset}/>
-                <PaletteEditor presetId={basePresetId} colors={customPalette}
-                  onChange={applyCustomPalette}/>
-                <MapDetailPanel layers={studioLayers} baseStyle={mapBaseStyle} settings={detailSettings}
-                  presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
-                  onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
-                  onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
-                <AdvancedRoadPanel settings={advancedSettings} onChange={changeAdvancedSettings} onReset={resetAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.roads}/>
-                <TypographyPanel settings={advancedSettings} onChange={changeAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.labels}/>
-                <ZoomDetailPanel settings={advancedSettings} onChange={changeAdvancedSettings}
-                  currentZoom={view?.zoom??13}
-                  onPreviewZoom={zoom=>map.current?.setView(view?.center??GUWAHATI,zoom)}/>
-                <section className="pane-section"><div className="section-heading">
+                {styleSection==="themes"&&<>
+                  <PresetGallery activePresetId={activePresetId} basePresetId={basePresetId}
+                    palette={customPalette} onApply={choosePreset}/>
+                  <PaletteEditor presetId={basePresetId} colors={customPalette}
+                    onChange={applyCustomPalette}/>
+                </>}
+                {styleSection==="roads"&&<>
+                  <MapDetailPanel layers={studioLayers} baseStyle={mapBaseStyle} settings={detailSettings}
+                    presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
+                    onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
+                    onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
+                  <AdvancedRoadPanel settings={advancedSettings} onChange={changeAdvancedSettings}
+                    onReset={resetAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.roads}/>
+                </>}
+                {styleSection==="features"&&<SemanticFeaturesPanel
+                  layers={studioLayers} baseStyle={mapBaseStyle} settings={semanticSettings}
+                  onChange={setSemanticSettings}/>}
+                {styleSection==="typography"&&<TypographyPanel settings={advancedSettings}
+                  onChange={changeAdvancedSettings} baseStyle={mapBaseStyle}
+                  presetColor={vectorTheme.labels}/>}
+                {styleSection==="detail"&&<ZoomDetailPanel settings={advancedSettings}
+                  onChange={changeAdvancedSettings} currentZoom={view?.zoom??13}
+                  onPreviewZoom={zoom=>map.current?.setView(view?.center??GUWAHATI,zoom)}/>}
+                {styleSection==="themes"&&<section className="pane-section"><div className="section-heading">
                     <div className="section-label">EDIT THEME COLOURS</div>
                     <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>
                   </div>
@@ -535,11 +580,14 @@ export default function App(){
                     log("Exported Atlas style document v2");
                   }}><Download size={16}/> Export editable style JSON (v2)</button>
                   <div className="muted-tip">Presets apply immediately. Changing a colour or individual layer creates a Custom theme without altering the original preset. Layer bindings depend on the loaded vector style.</div>
-                </section>
-                <LayerEditor layers={studioLayers} document={studioDocument} onChange={editStudioDocument}/>
+                </section>}
+                {styleSection==="layers"&&<LayerEditor layers={studioLayers}
+                  document={studioDocument} onChange={editStudioDocument}/>}
                 {studioWarnings.length>0&&<section className="pane-section"><div className="section-label">STYLE DIAGNOSTICS</div><div className="muted-tip">{studioWarnings.slice(0,3).join(" · ")}</div></section>}
               </>}
-              {renderer==="raster"&&<>
+              {renderer==="raster"&&styleSection!=="setup"&&
+                <div className="muted-tip">Raster tiles do not support feature-level styling. Open Map setup to select Vector mode.</div>}
+              {renderer==="raster"&&styleSection==="setup"&&<>
                 <section className="pane-section"><div className="section-label">RASTER TILE SOURCE</div>
                   <button className={"secondary-button"+(baseId==="standard"?" engaged":"")}
                     onClick={()=>setBaseId("standard")}>Standard OpenStreetMap (no key)</button>
