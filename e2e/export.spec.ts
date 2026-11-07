@@ -77,5 +77,6 @@ test("downloads a real SVG vector document for the current map",async({page})=>{
   expect(svg).toContain("<svg");
   expect(svg).toContain("</svg>");
   expect(svg).toContain("atlas-export-overlays");
+  expect(svg).toMatch(/atlas-rendered-features|<path\\b/i);
   expect(svg).toContain("OpenStreetMap");
 });
