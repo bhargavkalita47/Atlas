@@ -62,3 +62,20 @@ test("captures map viewport PNG as a real image download",async({page})=>{
   expect(raw.length).toBeGreaterThan(1000);
   expect(raw.subarray(0,8).toString("hex")).toBe("89504e470d0a1a0a");
 });
+
+test("downloads a real SVG vector document for the current map",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Export",exact:true}).click();
+  const [download]=await Promise.all([
+    page.waitForEvent("download",{timeout:30000}),
+    page.getByRole("button",{name:/Export SVG/}).click()
+  ]);
+  expect(download.suggestedFilename()).toBe("atlas-map.svg");
+  const svg=readFileSync((await download.path())!,"utf8");
+  expect(svg).toContain("<svg");
+  expect(svg).toContain("</svg>");
+  expect(svg).toContain("atlas-export-overlays");
+  expect(svg).toContain("OpenStreetMap");
+});
