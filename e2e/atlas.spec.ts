@@ -674,8 +674,10 @@ test("81 semantic presets recolour the feature library without reloading the vec
   await page.getByRole("tab",{name:"Features",exact:true}).click();
   await expect(swatch).not.toHaveAttribute("style",original!);
   await page.getByRole("tab",{name:"Themes",exact:true}).click();
+  await page.locator('input[aria-label="Search map presets"]').fill("hiking");
   await page.getByRole("button",{name:"Apply Hiking preset"}).click();
   await page.getByRole("tab",{name:"Features",exact:true}).click();
+  await page.getByRole("tab",{name:/Parks & vegetation/}).click();
   await expect(page.getByLabel("Forests & woodland theme colour")).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   expect(requests).toBe(previousRequests);
