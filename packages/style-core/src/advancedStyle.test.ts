@@ -11,7 +11,7 @@ const base=()=>({version:8,glyphs:"https://example.org/{fontstack}/{range}.pbf",
     {id:"background",type:"background",paint:{"background-color":"#ffffff"}},
     {id:"road-primary",type:"line",source:"osm","source-layer":"transportation",
       paint:{"line-color":"#bbbbbb","line-width":["interpolate",["linear"],["zoom"],5,1,14,5],"line-opacity":.9}},
-    {id:"road-secondary",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#aaaaaa","line-width":2,"line-opacity":.75}},
+    {id:"road-tertiary",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#aaaaaa","line-width":2,"line-opacity":.75}},
     {id:"road-primary-casing",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#333333","line-width":6}},
     {id:"road-mixed",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#999999","line-width":3,"line-opacity":.8}},
     {id:"city-label",type:"symbol",source:"osm","source-layer":"place",
@@ -51,8 +51,8 @@ describe("Advanced Atlas road, typography and zoom controls",()=>{
     expect(pick(r.style,"road-primary").paint?.["line-width"]).toBe(8);
     expect(pick(r.style,"road-primary-casing").paint?.["line-color"]).toBe("#443322");
     expect(pick(r.style,"road-primary-casing").paint?.["line-width"]).toBe(10);
-    expect(pick(r.style,"road-secondary").paint?.["line-color"]).toBe("#225599");
-    expect(pick(r.style,"road-secondary").layout?.visibility).toBe("none");
+    expect(pick(r.style,"road-tertiary").paint?.["line-color"]).toBe("#225599");
+    expect(pick(r.style,"road-tertiary").layout?.visibility).toBe("none");
     expect(pick(r.original as unknown as Record<string,unknown>,"road-primary").paint?.["line-color"]).toBe("#bbbbbb");
   });
   it("uses class expressions and a zoom step for mixed roads",()=>{

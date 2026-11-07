@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {applyMapDetailControls,classifyRoadLayer,createMapDetailSettings,ROAD_TIERS} from "./detailControls";
+import {applyMapDetailControls,classifyRoadLayer,createMapDetailSettings,ROAD_TIERS,ROAD_CLASS_VALUES} from "./detailControls";
 import {compileAtlasStyle,inspectStyleLayers,createEmptyStyleDocument,validateStyleDocument} from "./index";
 
 const base=()=>({
@@ -7,7 +7,7 @@ const base=()=>({
   layers:[
     {id:"background",type:"background",paint:{"background-color":"#ffffff"}},
     {id:"road-motorway",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.85,"line-width":4}},
-    {id:"road-secondary",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.8}},
+    {id:"road-tertiary",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.8}},
     {id:"road-mixed",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.65}},
     {id:"railway-tram",type:"line",source:"roads","source-layer":"transportation",paint:{"line-opacity":0.9}},
     {id:"road-name",type:"symbol",source:"roads","source-layer":"transportation_name",layout:{"text-field":["get","name"]}},
@@ -39,14 +39,10 @@ describe("Atlas map density / road hierarchy",()=>{
     settings.roads.secondary=25;
     const result=compiled(settings);
     expect(layer(result.style,"road-motorway").paint?.["line-opacity"]).toBe(.85);
-    expect(layer(result.style,"road-secondary").paint?.["line-opacity"]).toBe(.2);
+    expect(layer(result.style,"road-tertiary").paint?.["line-opacity"]).toBe(.2);
     expect(layer(result.style,"road-mixed").paint?.["line-opacity"]).toEqual([
       "match",["to-string",["coalesce",["get","class"],["get","highway"],["get","type"],""]],
-      ["motorway","trunk","freeway","motorway_link","trunk_link","expressway"],.65,
-      ["primary","primary_link","highway"],.65,
-      ["secondary","tertiary","secondary_link","tertiary_link","collector"],.1625,
-      ["residential","minor","unclassified","living_street","living","street","local"],.65,
-      ["service","track","path","footway","cycleway","pedestrian","steps","trail","bridleway"],.65,.65
+      ...ROAD_TIERS.flatMap(tier=>[ROAD_CLASS_VALUES[tier],tier==="secondary"?.1625:.65]),.65
     ]);
   });
   it("preserves provider zoom-dependent opacity when fading a road class",()=>{
@@ -111,9 +107,10 @@ describe("Atlas map density / road hierarchy",()=>{
     } as const;
     expect(classifyRoadLayer(base)).toBe("local");
     expect(classifyRoadLayer({...base,id:"highway_path"})).toBe("paths");
-    expect(classifyRoadLayer({...base,id:"highway_secondary_tertiary"})).toBe("secondary");
-    expect(classifyRoadLayer({...base,id:"highway_major_inner"})).toBe("primary");
+    expect(classifyRoadLayer({...base,id:"highway_secondary_tertiary"})).toBeNull();
+    expect(classifyRoadLayer({...base,id:"highway_major_inner"})).toBeNull();
     expect(classifyRoadLayer({...base,id:"highway_motorway_inner"})).toBe("motorway");
+    expect(classifyRoadLayer({...base,id:"road-tertiary"})).toBe("secondary");
   });
   it("preserves original documents and restores the original style when reset",()=>{
     const style=base(),original=JSON.stringify(style);
@@ -128,7 +125,7 @@ describe("Atlas map density / road hierarchy",()=>{
   it("recognizes distinct road layer classes without confusing road labels",()=>{
     const layers=inspectStyleLayers(base());
     expect(classifyRoadLayer(layers.find(x=>x.id==="road-motorway")!)).toBe("motorway");
-    expect(classifyRoadLayer(layers.find(x=>x.id==="road-secondary")!)).toBe("secondary");
+    expect(classifyRoadLayer(layers.find(x=>x.id==="road-tertiary")!)).toBe("secondary");
     expect(classifyRoadLayer(layers.find(x=>x.id==="road-mixed")!)).toBeNull();
     expect(ROAD_TIERS).toHaveLength(5);
   });

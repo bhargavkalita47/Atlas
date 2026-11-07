@@ -12,7 +12,7 @@ const provider={
   layers:[
     {id:"background",type:"background",paint:{"background-color":"#ffffff"}},
     {id:"road-primary",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#ffffff","line-width":3}},
-    {id:"road-secondary",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#eeeeee","line-opacity":1}},
+    {id:"road-tertiary",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#eeeeee","line-opacity":1}},
     {id:"road-residential",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#eeeeee"}},
     {id:"road-path",type:"line",source:"osm","source-layer":"transportation",paint:{"line-color":"#aaaaaa"}},
     {id:"city-label",type:"symbol",source:"osm","source-layer":"place",
@@ -64,12 +64,12 @@ describe("All 81 cartographic presets v3",()=>{
     const inputs=["#102030","#4a88cc","#66b788","#edc28c","#e584b0"];
     const original=createAtlasPresetDocument("blueprint",layers,{baseStyle:provider});
     const recoloured=reskinAtlasPreset("blueprint",inputs,layers,{baseStyle:provider});
-    const oldRoad=original.layers["road-secondary"]?.paint?.["line-color"];
-    const newRoad=recoloured.layers["road-secondary"]?.paint?.["line-color"];
+    const oldRoad=original.layers["road-tertiary"]?.paint?.["line-color"];
+    const newRoad=recoloured.layers["road-tertiary"]?.paint?.["line-color"];
     expect(newRoad).not.toEqual(oldRoad);
     expect(recoloured.layers["city-label"]?.paint?.["text-color"])
       .toBe(recoloured.groups.labels?.color);
-    expect(recoloured.layers["road-secondary"]?.paint?.["line-width"]).toBeDefined();
+    expect(recoloured.layers["road-tertiary"]?.paint?.["line-width"]).toBeDefined();
     expect(validateStyleDocument(recoloured)).toEqual([]);
   });
   it("keeps sparse manual edits after preset switches while untouched properties follow each theme",()=>{

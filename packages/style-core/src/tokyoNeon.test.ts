@@ -49,11 +49,11 @@ describe("Tokyo Neon original preset and provider-classification regression",()=
       const tierByLayer={
         highway_minor:"local",
         highway_path:"paths",
-        highway_major_inner:"primary",
+        highway_major_inner:null,
         highway_motorway_inner:"motorway"
       } as const;
       for(const [id,tier] of Object.entries(tierByLayer)){
-        expect(classifyRoadLayer(available.find(l=>l.id===id)!),id).toBe(tier);
+        expect(classifyRoadLayer(available.find(l=>l.id===id)!,base.layers.find(l=>l.id===id)),id).toBe(tier);
       }
       const minor=lines.find(l=>l.id==="highway_minor")!;
       // This real filter covers the "minor" and "service" roads Tokyo uses.
