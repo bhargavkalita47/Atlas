@@ -219,8 +219,8 @@ function zoomOutput(base:JsonValue,fn:(v:JsonValue)=>JsonValue):JsonValue{
     return arr;
   }
   if(Array.isArray(base)&&base[0]==="step"&&Array.isArray(base[1])&&base[1][0]==="zoom"){
-    const arr:JsonValue[]=base.slice(0,2);
-    for(let i=2;i<base.length;i+=2)arr.push(...(i===2?[fn(base[i]!)]:[base[i]!,fn(base[i+1]!)]));
+    const arr:JsonValue[]=[...base.slice(0,2),fn(base[2]!)];
+    for(let i=3;i<base.length;i+=2)arr.push(base[i]!,fn(base[i+1]!));
     return arr;
   }
   return fn(base);
