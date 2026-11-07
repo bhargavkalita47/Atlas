@@ -506,7 +506,7 @@ export default function App(){
                   palette={customPalette} onApply={choosePreset}/>
                 <PaletteEditor presetId={basePresetId} colors={customPalette}
                   onChange={applyCustomPalette}/>
-                <MapDetailPanel layers={studioLayers} settings={detailSettings}
+                <MapDetailPanel layers={studioLayers} baseStyle={mapBaseStyle} settings={detailSettings}
                   presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
                   onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
                   onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
