@@ -44,10 +44,9 @@ function renderVisibleFeaturesSvg(map:MapLibreMap,width:number,height:number):st
     const layer=feature.layer;
     if(layer.type!=="fill"&&layer.type!=="line"&&layer.type!=="circle")continue;
     const paint=(layer.paint??{}) as Record<string,unknown>;
-    const type=feature.geometry.type;
     const geom=feature.geometry;
-    if(layer.type==="circle"&&(type==="Point"||type==="MultiPoint")){
-      const positions=type==="Point"?[geom.coordinates]:(geom.coordinates as number[][]);
+    if(layer.type==="circle"&&(geom.type==="Point"||geom.type==="MultiPoint")){
+      const positions=geom.type==="Point"?[geom.coordinates]:geom.coordinates;
       const r=typeof paint["circle-radius"]==="number"?paint["circle-radius"]:4;
       const ink=color(paint["circle-color"],"#5877A5");
       for(const p of positions){
