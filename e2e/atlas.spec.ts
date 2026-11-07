@@ -49,6 +49,7 @@ test("deploy output caches only fingerprinted assets and preloads default style"
   await expect(page.locator('link[rel="modulepreload"][href*="RasterMapLoader-"]')).toHaveCount(0);
   await expect(page.locator('link[rel="preload"][as="fetch"][href="https://tiles.openfreemap.org/styles/positron"]')).toHaveCount(1);
   await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Map setup",exact:true}).click();
   await page.getByRole("button",{name:/Bright/}).hover();
   await expect(page.locator('link[rel="preload"][as="fetch"][href="https://tiles.openfreemap.org/styles/bright"]')).toHaveCount(1);
   await page.getByRole("button",{name:/Bright/}).hover();
@@ -82,9 +83,14 @@ test("vector map initializes a worker, renders pins, and applies a new style",as
   await expect(page.getByText("Geometry export")).toBeVisible();
   await expect(page.locator(".test-results .failed")).toHaveCount(0);
   await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Map setup",exact:true}).click();
   await page.getByRole("button",{name:/Bright/}).click();
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
+
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await page.locator('input[aria-label="Rivers and water"]').fill("#aabbcc");
+  await page.getByRole("tab",{name:"Map setup",exact:true}).click();
+
   await page.getByRole("button",{name:/High.*sharper/}).click();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   await page.getByRole("button",{name:/Balanced.*faster/}).click();
@@ -101,6 +107,7 @@ test("maps remain operable on a mobile viewport and can use raster fallback",asy
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
   await page.getByRole("button",{name:"Open menu"}).click();
   await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Map setup",exact:true}).click();
   await page.getByRole("button",{name:/Raster.*fallback/}).click();
   await expect(page.locator(".leaflet-container")).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(0);
@@ -233,6 +240,7 @@ test("style studio edits an exact vector layer and resets without remounting",as
   await page.goto("/");
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Layers",exact:true}).click();
   await expect(page.getByText(/EDITABLE MAP LAYERS/)).toBeVisible();
   await page.getByRole("button",{name:/fixture-dot/}).click();
   await page.locator('input[aria-label="Layer color"]').fill("#224466");
@@ -358,6 +366,7 @@ test("map detail panel supports per-road opacity and feature visibility without 
   await page.goto("/");
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
   await expect(page.getByRole("group",{name:"Map detail density"})).toBeVisible();
   await page.evaluate(()=>{(window as Window & {atlasDetailCanvas?:Element|null}).atlasDetailCanvas=document.querySelector(".maplibregl-canvas");});
   await page.waitForLoadState("networkidle");
@@ -366,7 +375,10 @@ test("map detail panel supports per-road opacity and feature visibility without 
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) opacity"]')).toHaveValue("25");
   await page.getByRole("combobox",{name:"Buildings visibility"}).selectOption("hide");
   await expect(page.getByRole("combobox",{name:"Buildings visibility"})).toHaveValue("hide");
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
   await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) opacity"]')).toHaveValue("25");
   await expect(page.getByRole("combobox",{name:"Buildings visibility"})).toHaveValue("hide");
   await page.getByRole("button",{name:"Essential",exact:true}).click();
@@ -391,14 +403,21 @@ test("revamped preset information hierarchy keeps manual edits across instant sw
   await page.getByRole("button",{name:"Style studio"}).click();
   await page.waitForLoadState("networkidle");
   const before=styleRequests;
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
   await expect(page.locator('input[aria-label="Neighbourhood roads (Secondary) opacity"]')).toHaveValue("58");
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
   await page.locator('input[aria-label="Search map presets"]').fill("hiking");
   await page.getByRole("button",{name:"Apply Hiking preset"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await expect(page.locator('input[aria-label="Walking and cycling paths opacity"]')).toHaveValue("100");
   await expect(page.locator('input[aria-label="Motorways & highways opacity"]')).toHaveValue("97");
   await page.locator('input[aria-label="Tertiary connectors (Secondary) opacity"]').fill("25");
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
   await page.locator('input[aria-label="Search map presets"]').fill("navigation");
   await page.getByRole("button",{name:"Apply Navigation preset"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) opacity"]')).toHaveValue("25");
   await expect(page.locator('input[aria-label="Neighbourhood roads (Secondary) opacity"]')).toHaveValue("90");
   await page.getByRole("button",{name:"Reset to preset"}).click();
@@ -420,6 +439,7 @@ test("Atlas Studio edits roads, labels and zoom rules without remounting the map
   await page.getByRole("button",{name:"Style studio"}).click();
   await page.waitForLoadState("networkidle");
   const count=requests;
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
   await expect(page.locator('section[aria-label="Advanced road styling"]')).toBeVisible();
   await page.getByRole("checkbox",{name:"Tertiary connectors (Secondary) road custom"}).check();
   await page.locator('input[aria-label="Tertiary connectors (Secondary) road color"]').fill("#8844aa");
@@ -427,11 +447,13 @@ test("Atlas Studio edits roads, labels and zoom rules without remounting the map
   await page.locator('input[aria-label="Tertiary connectors (Secondary) width"]').fill("5");
   await page.getByRole("combobox",{name:"Tertiary connectors (Secondary) dash pattern"}).selectOption("dashed");
   await page.getByRole("combobox",{name:"Tertiary connectors (Secondary) visibility"}).selectOption("hide");
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
   await expect(page.locator('section[aria-label="Typography studio"]')).toBeVisible();
   await page.getByRole("checkbox",{name:"Cities & major places size custom"}).check();
   await page.locator('input[aria-label="Cities & major places size"]').fill("1.5");
   await page.getByRole("checkbox",{name:"Cities & major places text custom"}).check();
   await page.locator('input[aria-label="Cities & major places text color"]').fill("#aabbcc");
+  await page.getByRole("tab",{name:"Zoom",exact:true}).click();
   await expect(page.locator('section[aria-label="Zoom-dependent map detail"]')).toBeVisible();
   await page.locator('input[aria-label="Tertiary connectors (Secondary) min zoom"]').fill("12");
   await page.locator('section[aria-label="Zoom-dependent map detail"] details').nth(2).locator("summary").click();
@@ -439,9 +461,13 @@ test("Atlas Studio edits roads, labels and zoom rules without remounting the map
   await page.getByRole("button",{name:"Preview zoom 9"}).click();
   await expect.poll(async()=>Number((await page.locator(".footer-pill").textContent())?.replace(/^Z/,""))).toBeCloseTo(9,0);
   await page.getByRole("button",{name:"Preview zoom 16"}).click();
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
   await page.getByRole("button",{name:"Apply Paper & Ink preset"}).click();
+  await page.getByRole("tab",{name:"Zoom",exact:true}).click();
+
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) min zoom"]')).toHaveValue("12");
   await expect(page.locator('input[aria-label="Buildings min zoom"]')).toHaveValue("14");
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
   await expect(page.locator('input[aria-label="Cities & major places text color"]')).toHaveValue("#aabbcc");
   expect(requests).toBe(count);
   expect(await page.evaluate(()=>document.querySelector(".maplibregl-canvas")===(window as Window & {originalAdvancedCanvas?:Element|null}).originalAdvancedCanvas)).toBe(true);
@@ -460,21 +486,36 @@ test("curated road type and zoom profiles follow presets while manual edits surv
   await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("81 presets prepared in memory");
   await page.waitForLoadState("networkidle");
   const before=styleRequests;
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
   // The initial Minimal Light preset is deliberately quiet.
   const localWidth=page.locator('input[aria-label="Residential streets & bylanes (Secondary) width"]');
   const pathZoom=page.locator('input[aria-label="Footpaths & cycleways min zoom"]');
   await expect(localWidth).toHaveValue("1.05");
+  await page.getByRole("tab",{name:"Zoom",exact:true}).click();
   await expect(pathZoom).toHaveValue("14");
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
+
   await page.locator('input[aria-label="Search map presets"]').fill("navigation");
   await page.getByRole("button",{name:"Apply Navigation preset"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await expect(localWidth).toHaveValue("2");
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
   await expect(page.locator('input[aria-label="Road and street names size"]')).toHaveValue("1.28");
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await page.locator('input[aria-label="Tertiary connectors (Secondary) width"]').fill("5");
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
   await page.locator('input[aria-label="Search map presets"]').fill("hiking");
   await page.getByRole("button",{name:"Apply Hiking preset"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) width"]')).toHaveValue("5");
   await expect(localWidth).toHaveValue("1.05");
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
   await expect(page.locator('input[aria-label="Road and street names size"]')).toHaveValue("0.77");
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+
   await page.getByRole("button",{name:"Reset advanced design to preset"}).click();
   await expect(page.locator('input[aria-label="Tertiary connectors (Secondary) width"]')).not.toHaveValue("5");
   expect(styleRequests).toBe(before);
@@ -490,6 +531,7 @@ test("Primary and Secondary road controls never change each other's city street 
   });
   await page.goto("/");
   await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
   await expect(page.locator('section[aria-label="Map detail controls"]')).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   await page.waitForLoadState("networkidle");
@@ -531,4 +573,28 @@ test("Primary and Secondary road controls never change each other's city street 
   await expect(small).toHaveValue("32");
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   expect(styleRequests).toBe(initial);
+});
+
+test("Atlas Lab navigation keeps the map mounted and allows text outline and halo overrides",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.getByRole("tablist",{name:"Style Studio sections"})).toBeVisible();
+  await page.getByRole("tab",{name:"Typography",exact:true}).click();
+  await expect(page.getByRole("group",{name:"All map text effects"})).toBeVisible();
+  await page.getByRole("button",{name:"All text outline show"}).click();
+  await expect(page.getByRole("combobox",{name:"Cities & major places outline"})).toHaveValue("show");
+  await page.getByRole("button",{name:"All text halo hide"}).click();
+  await expect(page.getByRole("combobox",{name:"Road and street names halo"})).toHaveValue("hide");
+  await page.getByRole("button",{name:"All text halo show"}).click();
+  await expect(page.getByRole("combobox",{name:"Road and street names halo"})).toHaveValue("show");
+  await page.getByRole("button",{name:"All text outline inherit"}).click();
+  await expect(page.getByRole("combobox",{name:"Cities & major places outline"})).toHaveValue("inherit");
+  await page.getByRole("tab",{name:"Features",exact:true}).click();
+  await expect(page.locator('section[aria-label="Feature styling studio"]')).toBeVisible();
+  await page.getByRole("tab",{name:"Roads",exact:true}).click();
+  await expect(page.locator('section[aria-label="Advanced road styling"]')).toBeVisible();
+  await page.getByRole("tab",{name:"Themes",exact:true}).click();
+  await expect(page.locator(".atlas-preset-total")).toContainText("81 themes");
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 });
