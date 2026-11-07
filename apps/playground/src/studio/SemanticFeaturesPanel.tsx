@@ -96,7 +96,7 @@ export function SemanticFeaturesPanel({layers,baseStyle,settings,onChange}:Props
         const isExtrusion=key==="buildings"&&buildings3d;
         const color=cfg.color??colours[key]??"#95A2B5";
         const label=info.name;
-        return <details key={key} className="atlas-feature-card" disabled={!available}>
+        return <details key={key} className="atlas-feature-card">
           <summary>
             <span><strong>{label}</strong><small>{info.hint}</small></span>
             <span className={"atlas-feature-support"+(available?" supported":"")}>
