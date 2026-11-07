@@ -12,6 +12,8 @@ export interface AtlasMapHandle {
   zoomIn(): void;
   zoomOut(): void;
   getView(): ViewState | null;
+  /** Optional vector export. Raster fallback does not support this method. */
+  exportMap?(format:"png"|"svg"):Promise<Blob>;
 }
 export interface AtlasMapProps {
   center: LatLng; zoom?: number; tile: TileSource;
