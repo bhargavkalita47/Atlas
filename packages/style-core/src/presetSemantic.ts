@@ -79,10 +79,22 @@ type FeaturePatch=Partial<Omit<FeatureDesign,"zoom">>&{zoom?:Partial<FeatureZoom
 const named:Record<string,Partial<Record<SemanticFeature,FeaturePatch>>>={
   "minimal-light":{buildings:{opacity:42},poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:23}},
   "minimal-dark":{buildings:{opacity:47},poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:19}},
+  "pastel-city":{gardens:{opacity:96},buildings:{opacity:88},poiFood:{iconSize:1.12},poiShopping:{iconSize:1.08}},
+  "graphite-mono":{buildings:{opacity:36},poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:22}},
+  "terra":{terrain:{opacity:92},agriculture:{opacity:89},grass:{opacity:93},streams:{width:1.45}},
+  "high-contrast":{buildings:{opacity:87},poiHealth:{opacity:100,iconSize:1.3},poiTransit:{opacity:100,iconSize:1.3},localBorders:{opacity:80,width:1.2}},
   "carbon":{buildings:{opacity:43},forests:{opacity:59},localBorders:{opacity:18}},
   "linen":{residential:{opacity:52},gardens:{opacity:64},streams:{opacity:48}},
+  "mist":{buildings:{opacity:28},streams:{opacity:43},forests:{opacity:53},localBorders:{opacity:18}},
+  "porcelain":{buildings:{opacity:45},poiFood:{visible:false},poiShopping:{visible:false},gardens:{opacity:64}},
+  "ash-blue":{waterBodies:{opacity:97},rivers:{opacity:93},forests:{opacity:60},poiLandmarks:{opacity:50}},
+  "chalkboard":{parks:{opacity:53},buildings:{opacity:52},countryBorders:{opacity:29,dash:"dashed"},poiShopping:{visible:false}},
+  "paper-slate":{buildings:{opacity:65},regionBorders:{opacity:71},poiLandmarks:{opacity:58}},
   "snowfall":{waterBodies:{opacity:88},buildings:{opacity:53},streams:{opacity:57}},
   "museum":{buildings:{opacity:94,outlineColor:"#8C9294"},poiLandmarks:{opacity:91,iconSize:1.13}},
+  "alabaster":{buildings:{opacity:70},gardens:{opacity:72},localBorders:{opacity:33},poiShopping:{opacity:36}},
+  "burgundy-print":{poiLandmarks:{opacity:91,iconSize:1.1},countryBorders:{opacity:89},gardens:{opacity:78}},
+  "night-editorial":{buildings:{opacity:44},railways:{opacity:57},regionBorders:{opacity:61},poiFood:{opacity:47}},
   "architectural":{buildings:{opacity:95},countryBorders:{width:1.7},regionBorders:{width:1.1}},
   "old-atlas":{countryBorders:{width:2.1,dash:"dashed"},localBorders:{opacity:37}},
   "newspaper":{buildings:{opacity:76},countryBorders:{width:2,dash:"dashed"}},
@@ -111,6 +123,7 @@ const named:Record<string,Partial<Record<SemanticFeature,FeaturePatch>>>={
   "film-noir":{buildings:{opacity:75},localBorders:{opacity:15},poiFood:{opacity:45}},
   "sepia-archive":{countryBorders:{dash:"dashed",opacity:92},regionBorders:{dash:"dashed"}},
   "vintage-road":{countryBorders:{width:1.9},railways:{opacity:68}},
+  "seventies-orange":{agriculture:{opacity:91},gardens:{opacity:95},poiFood:{iconSize:1.08},railways:{opacity:45}},
   "art-deco":{buildings:{opacity:91},countryBorders:{opacity:91,width:2.1}},
   "eighties-grid":{railways:{opacity:92},countryBorders:{dash:"dashed"}},
   "analog-crt":{poiFood:{opacity:48},poiTransit:{opacity:79},railways:{width:1.6}},
@@ -123,6 +136,7 @@ const named:Record<string,Partial<Record<SemanticFeature,FeaturePatch>>>={
   "data-grid":{railways:{width:1.5},countryBorders:{dash:"dashed",width:2}},
   "quantum-cyan":{waterBodies:{opacity:100},railways:{width:1.7}},
   "hologram":{buildings:{opacity:63},railways:{opacity:96},poiTransit:{iconSize:1.24}},
+  "obsidian":{buildings:{opacity:36},localBorders:{opacity:18},poiFood:{visible:false},poiShopping:{visible:false},railways:{opacity:44}},
   "circuit-board":{railways:{width:2.1},forests:{opacity:65}},
   "navigation":{buildings:{opacity:54},poiTransit:{iconSize:1.33,opacity:100},poiHealth:{iconSize:1.22},localBorders:{opacity:24}},
   "transit-map":{railways:{width:3.5,opacity:100},poiTransit:{iconSize:1.55,opacity:100},poiShopping:{opacity:45},poiFood:{opacity:48}},
@@ -135,6 +149,9 @@ const named:Record<string,Partial<Record<SemanticFeature,FeaturePatch>>>={
   "accessibility-light":{buildings:{opacity:74},countryBorders:{width:2.3},poiHealth:{iconSize:1.5,opacity:100},poiTransit:{iconSize:1.5}},
   "accessibility-dark":{buildings:{opacity:76},countryBorders:{width:2.3},poiHealth:{iconSize:1.5,opacity:100},poiTransit:{iconSize:1.5}},
   "festival":{poiFood:{iconSize:1.36,opacity:100},poiLandmarks:{iconSize:1.5,opacity:100},poiShopping:{opacity:98}},
+  "bubblegum":{gardens:{opacity:100},poiFood:{iconSize:1.22,opacity:95},poiShopping:{iconSize:1.16}},
+  "peach":{gardens:{opacity:96},waterBodies:{opacity:100},poiLandmarks:{iconSize:1.14},residential:{opacity:71}},
+  "mint-pop":{parks:{opacity:100},grass:{opacity:95},poiHealth:{iconSize:1.15},poiTransit:{iconSize:1.15}},
   "sakura":{gardens:{opacity:100},parks:{opacity:98},poiLandmarks:{opacity:94}},
   "candy":{gardens:{opacity:100},poiFood:{iconSize:1.28},poiShopping:{iconSize:1.25}},
   "lavender-fields":{gardens:{opacity:100},grass:{opacity:97},forests:{opacity:82}},
@@ -169,7 +186,9 @@ export function getAtlasPresetSemanticSettings(id:string,override:SemanticPalett
     fill(k,color,opacity);result[k].width=width;
   };
   fill("buildings",mix(buildings,land,quiet*.25),spec.buildings);
-  result.buildings.outlineColor=mix(buildings,labels,dark?.30:.17);
+  // The family outline setting is intentional: minimal/nature maps avoid
+  // forced building outlines; architectural/utility maps explicitly draw them.
+  if(spec.outline)result.buildings.outlineColor=mix(buildings,labels,dark?.30:.17);
   fill("residential",mix(buildings,land,quiet),spec.landuse);
   fill("commercial",mix(buildings,accent,dark?.33:.28),Math.min(100,spec.landuse+7));
   fill("industrial",mix(buildings,labels,dark?.23:.15),Math.max(0,spec.landuse-4));
@@ -186,10 +205,17 @@ export function getAtlasPresetSemanticSettings(id:string,override:SemanticPalett
     poiFood:mix(accent,buildings,.23),poiShopping:mix(accent,p.parks,.16),
     poiLandmarks:mix(accent,labels,.08),poiTransit:mix(transit,labels,.14)
   };
+  // Category-specific label density: transport and healthcare enter earlier
+  // than restaurants/retail, while landmarks stay visible for travel maps.
+  // Provider layer limits still win; Atlas never fabricates missing POIs.
+  const poiOffsets:Record<keyof typeof poiColor,number>={
+    poiHealth:-2,poiEducation:0,poiFood:1,poiShopping:2,
+    poiLandmarks:preset.family==="travel"?-2:0,poiTransit:-3
+  };
   for(const k of Object.keys(poiColor) as (keyof typeof poiColor)[]){
     fill(k,poiColor[k],spec.poi);
     result[k].iconSize=spec.poiScale;
-    result[k].zoom.min=spec.cityDetail;
+    result[k].zoom.min=Math.max(7,Math.min(19,spec.cityDetail+poiOffsets[k]));
   }
   if(preset.family==="minimal"){
     result.poiFood.visible=false;
@@ -210,6 +236,18 @@ export function getAtlasPresetSemanticSettings(id:string,override:SemanticPalett
   line("terrain",mix(parks,labels,dark?.15:.23),
     Math.max(10,spec.nature-15),Number((.8*spec.strokes).toFixed(2)));
   if(preset.family==="nature")result.terrain.dash="dashed";
+  // Give the new category-level zoom editors meaningful defaults without
+  // overriding the provider's original zoom bounds or shared road layers.
+  const buildingZoom:Record<Family,number>={
+    minimal:15,editorial:12,nature:15,travel:13,
+    retro:13,futuristic:14,expressive:12,utility:12
+  };
+  result.buildings.zoom.min=buildingZoom[preset.family];
+  result.commercial.zoom.min=preset.family==="utility"?11:preset.family==="minimal"?15:13;
+  result.industrial.zoom.min=preset.family==="utility"?12:14;
+  result.gardens.zoom.min=preset.family==="nature"||preset.family==="travel"?11:13;
+  result.localBorders.zoom.min=preset.family==="editorial"||preset.family==="utility"?8:11;
+  result.railways.zoom.min=preset.family==="utility"||preset.family==="futuristic"?9:11;
   if(preset.family==="futuristic"&&dark)result.buildings.heightScale=1.18;
   if(preset.family==="editorial"&&id==="architectural")result.buildings.heightScale=1.15;
   applyPatches(result,named[id]??{});
