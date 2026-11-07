@@ -6,6 +6,8 @@ import {
 import type { LatLng, MarkerData, Shape } from "@atlas/core";
 import { escapeHtml, safeHex, validPoint } from "@atlas/core";
 import type { AtlasMapHandle, ViewState } from "./index";
+import type {AtlasStyleDocument,StyleLayerDescriptor,StyleDiagnostic,JsonRecord} from "@atlas/style-core";
+import {applyAtlasStyleDocument,editableLayerInventory} from "./styleRuntime";
 import {basePixelRatio,createAdaptiveResolutionController,type AdaptiveResolutionController,type ResolutionState} from "./adaptiveResolution";
 export type {ResolutionState} from "./adaptiveResolution";
 
@@ -82,6 +84,10 @@ export interface AtlasVectorMapProps {
   zoom?: number;
   styleUrl?: string;
   theme: VectorTheme;
+  /** Optional v2 authoring document; takes precedence over legacy six-color theme. */
+  styleDocument?: AtlasStyleDocument;
+  onStyleLayers?: (layers:StyleLayerDescriptor[],baseStyle?:JsonRecord) => void;
+  onStyleDiagnostics?: (diagnostics:StyleDiagnostic[]) => void;
   markers: readonly MarkerData[];
   shapes: readonly Shape[];
   selectedId?: string | null;
@@ -182,7 +188,7 @@ type ManagedMarker = {
  */
 export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(function AtlasVectorMap({
   center, zoom=13, styleUrl=KEYLESS_VECTOR_STYLES.liberty,
-  theme,markers,shapes,selectedId,onSelect,onDrag,onClick,
+  theme,styleDocument,onStyleLayers,onStyleDiagnostics,markers,shapes,selectedId,onSelect,onDrag,onClick,
   onViewChange,onReady,onError,onPerformance,onResolutionChange,
   renderQuality="balanced",adaptiveResolution=true,className,style,
 },ref){
@@ -192,12 +198,16 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   const currentStyleUrl=useRef(styleUrl);
   const restartStyleWatchdog=useRef<(()=>void)|null>(null);
   const reportFatalStyleError=useRef<((message:string)=>void)|null>(null);
-  const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance,onResolutionChange});
-  latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance,onResolutionChange};
+  const latest=useRef({onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance,onResolutionChange,onStyleLayers,onStyleDiagnostics});
+  latest.current={onClick,onSelect,onDrag,onViewChange,onReady,onError,onPerformance,onResolutionChange,onStyleLayers,onStyleDiagnostics};
   const shapesRef=useRef(shapes);
   shapesRef.current=shapes;
   const themeRef=useRef(theme);
   themeRef.current=theme;
+  const documentRef=useRef(styleDocument);
+  documentRef.current=styleDocument;
+  const baseStyleRef=useRef<unknown>(null);
+  const appliedStyleRef=useRef<JsonRecord|null>(null);
   const qualityRef=useRef(renderQuality);
   const resolutionController=useRef<AdaptiveResolutionController|null>(null);
 
@@ -257,10 +267,21 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
       if(disposed||failed)return;
       try{
         invalidateVectorThemeCache(instance);
+        // Capture the unmodified external style *before* installing Atlas
+        // overlays. V2 compilation must never style app-owned geometry.
+        const baseStyle=instance.getStyle();
+        baseStyleRef.current=baseStyle;
+        appliedStyleRef.current=null;
+        const layers=editableLayerInventory(baseStyle);
         installShapeLayers(instance);
         const source=instance.getSource(shapeSource) as GeoJSONSource|undefined;
         source?.setData(asGeoJson(shapesRef.current));
-        applyVectorTheme(instance,themeRef.current);
+        if(documentRef.current){
+          const applied=applyAtlasStyleDocument(instance,baseStyle,documentRef.current);
+          appliedStyleRef.current=applied.appliedStyle;
+          if(applied.diagnostics.length)latest.current.onStyleDiagnostics?.(applied.diagnostics);
+        }else applyVectorTheme(instance,themeRef.current);
+        latest.current.onStyleLayers?.(layers,baseStyle as unknown as JsonRecord);
         latest.current.onPerformance?.({
           phase:"style",
           elapsedMs:Math.round(performance.now()-styleBeganAt),
@@ -346,8 +367,24 @@ export const AtlasVectorMap = forwardRef<AtlasMapHandle,AtlasVectorMapProps>(fun
   // change, including changes requested while style data was still loading.
   useEffect(()=>{
     const instance=map.current;
-    if(instance&&instance.isStyleLoaded())applyVectorTheme(instance,theme);
-  },[theme]);
+    if(!instance||!instance.isStyleLoaded())return;
+    if(!styleDocument){
+      applyVectorTheme(instance,theme);
+      return;
+    }
+    const base=baseStyleRef.current;
+    if(!base)return;
+    try{
+      const applied=applyAtlasStyleDocument(instance,base,styleDocument,appliedStyleRef.current??base);
+      appliedStyleRef.current=applied.appliedStyle;
+      if(applied.diagnostics.length)latest.current.onStyleDiagnostics?.(applied.diagnostics);
+    }catch(error){
+      latest.current.onStyleDiagnostics?.([{
+        severity:"error",code:"STYLE_DOCUMENT_REJECTED",path:"document",
+        message:error instanceof Error?error.message:String(error)
+      }]);
+    }
+  },[theme,styleDocument]);
 
   useEffect(()=>{
     const instance=map.current;

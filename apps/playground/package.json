@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run src/studio/studioCache.test.ts"
   },
   "dependencies": {
     "@atlas/core": "0.1.0",
@@ -15,6 +16,7 @@
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "maplibre-gl": "^6.3.0"
+    "maplibre-gl": "^6.3.0",
+    "@atlas/style-core": "0.1.0"
   }
 }

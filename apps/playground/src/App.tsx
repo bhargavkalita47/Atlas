@@ -12,6 +12,20 @@ import {
   type MarkerData,type Place,type Shape
 } from "@atlas/core";
 import type {AtlasMapHandle,TileSource,ViewState} from "@atlas/react";
+import {
+  STYLE_GROUPS,createAtlasPresetDocument,getAtlasPreset,
+  getAtlasPresetCoreColors,reskinAtlasPreset,stringifyAtlasStyleDocument,
+  applyMapDetailControls,getAtlasPresetDetailSettings,mergeMapDetailOverrides,deriveMapDetailOverrides,
+  applyAdvancedStyleControls,getAtlasPresetAdvancedSettings,
+  createAdvancedOverrides,mergeAdvancedOverrides,deriveAdvancedOverrides,
+  type AtlasStyleDocument,type StyleLayerDescriptor,type JsonRecord,type MapDetailOverrides,type AdvancedOverrides
+} from "@atlas/style-core";
+import {PresetGallery} from "./studio/PresetGallery";
+import {PaletteEditor} from "./studio/PaletteEditor";
+import {LayerEditor} from "./studio/LayerEditor";
+import {StudioPresetCache} from "./studio/studioCache";
+import {MapDetailPanel} from "./studio/MapDetailPanel";
+import {AdvancedRoadPanel,TypographyPanel,ZoomDetailPanel} from "./studio/AdvancedStylePanels";
 import {DEFAULT_VECTOR_THEME,KEYLESS_VECTOR_STYLES,preloadVectorStyle,type VectorTheme,type VectorPerformanceEvent} from "@atlas/react/vector-config";
 const AtlasVectorMap=lazy(()=>import("./VectorMapLoader"));
 const AtlasRasterMap=lazy(()=>import("./RasterMapLoader"));
@@ -35,6 +49,16 @@ const COLOR_FIELDS:[keyof VectorTheme,string,string][]=[
   ["buildings","Buildings","Building fills and outlines"],
   ["labels","Map labels","Map names and text layers"]
 ];
+const INITIAL_PRESET="minimal-light";
+const MINIMAL_THEME:VectorTheme=getAtlasPresetCoreColors(INITIAL_PRESET);
+function bindingsFor(layers:readonly StyleLayerDescriptor[]):AtlasStyleDocument["bindings"]{
+  const bindings:AtlasStyleDocument["bindings"]={};
+  for(const group of STYLE_GROUPS){
+    const ids=layers.filter(layer=>layer.suggestedGroup===group).map(layer=>layer.id);
+    if(ids.length)bindings[group]=ids;
+  }
+  return bindings;
+}
 const VECTOR_STYLES=[
   {id:"liberty",name:"Liberty",tag:"Detailed"},
   {id:"positron",name:"Positron",tag:"Minimal"},
@@ -106,7 +130,18 @@ export default function App(){
   const [adaptiveResolution,setAdaptiveResolution]=useState(true);
   const [resolutionState,setResolutionState]=useState<{phase:"moving"|"idle";pixelRatio:number}|null>(null);
   const [vectorPerformance,setVectorPerformance]=useState<{style?:number;idle?:number}>({});
-  const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...DEFAULT_VECTOR_THEME});
+  const [vectorTheme,setVectorTheme]=useState<VectorTheme>({...MINIMAL_THEME});
+  const [studioDocument,setStudioDocument]=useState<AtlasStyleDocument>(()=>createAtlasPresetDocument(INITIAL_PRESET));
+  const [activePresetId,setActivePresetId]=useState<string|null>(INITIAL_PRESET);
+  const [basePresetId,setBasePresetId]=useState<string>(INITIAL_PRESET);
+  const [customPalette,setCustomPalette]=useState<string[]|null>(null);
+  const [studioLayers,setStudioLayers]=useState<StyleLayerDescriptor[]>([]);
+  const [studioWarnings,setStudioWarnings]=useState<string[]>([]);
+  const [detailOverrides,setDetailOverrides]=useState<MapDetailOverrides>(()=>({roads:{},features:{}}));
+  const [mapBaseStyle,setMapBaseStyle]=useState<JsonRecord|null>(null);
+  const [advancedOverrides,setAdvancedOverrides]=useState<AdvancedOverrides>(()=>createAdvancedOverrides());
+  const studioCache=useRef(new StudioPresetCache());
+  const [preparedPresets,setPreparedPresets]=useState(0);
   const [baseId,setBaseId]=useState("standard");
   const [customUrl,setCustomUrl]=useState("");
   const [customTiles,setCustomTiles]=useState<TileSource|null>(null);
@@ -135,7 +170,80 @@ export default function App(){
   },[]);
   const alert=(text:string)=>{setNotification(text);log(text);};
   useEffect(()=>{localStorage.setItem("atlas.lab.markers",JSON.stringify(markers));},[markers]);
+  // Atlas Lab only: warm the four small style documents at low priority.
+  // MapLibre still owns vector tile/glyph/sprite requests and their browser
+  // cache policy; preloading cannot cache the world's geographic data.
+  useEffect(()=>{
+    for(const url of Object.values(KEYLESS_VECTOR_STYLES))
+      preloadVectorStyle(url,"low");
+  },[]);
+  const presetDetailSettings=useMemo(()=>getAtlasPresetDetailSettings(basePresetId),[basePresetId]);
+  const detailSettings=useMemo(()=>mergeMapDetailOverrides(presetDetailSettings,detailOverrides),
+    [presetDetailSettings,detailOverrides]);
+  // Preset typography and road colours follow the currently selected
+  // semantic palette, including custom 4–6-colour reskins. Manual controls
+  // are sparse overrides, never baked into the prewarmed preset cache.
+  const presetAdvancedSettings=useMemo(()=>{
+    const preset=getAtlasPreset(basePresetId);
+    return getAtlasPresetAdvancedSettings(basePresetId,{
+      land:studioDocument.groups.land?.color??preset.palette.land,
+      roads:studioDocument.groups.roads?.color??preset.palette.roads,
+      labels:studioDocument.groups.labels?.color??preset.palette.labels
+    });
+  },[basePresetId,studioDocument]);
+  const advancedSettings=useMemo(()=>mergeAdvancedOverrides(presetAdvancedSettings,advancedOverrides),
+    [presetAdvancedSettings,advancedOverrides]);
+  const changeAdvancedSettings=(next:typeof advancedSettings)=>
+    setAdvancedOverrides(deriveAdvancedOverrides(presetAdvancedSettings,next));
+  const resetAdvancedSettings=()=>setAdvancedOverrides(createAdvancedOverrides());
+  const detailStyleDocument=useMemo(()=>applyMapDetailControls(
+    studioDocument,studioLayers,detailSettings,mapBaseStyle
+  ),[studioDocument,studioLayers,detailSettings,mapBaseStyle]);
+  const effectiveStyleDocument=useMemo(()=>applyAdvancedStyleControls(
+    detailStyleDocument,studioLayers,advancedSettings,mapBaseStyle
+  ),[detailStyleDocument,studioLayers,advancedSettings,mapBaseStyle]);
   const tile=baseId==="custom"&&customTiles ? customTiles : BASEMAPS.standard!;
+  const colorsForDocument=(document:AtlasStyleDocument):VectorTheme=>{
+    const fallback=getAtlasPresetCoreColors(basePresetId);
+    return Object.fromEntries(
+      (["land","water","parks","roads","buildings","labels"] as const)
+        .map(key=>[key,document.groups[key]?.color??fallback[key]])
+    ) as VectorTheme;
+  };
+  const choosePreset=(id:string)=>{
+    const preset=getAtlasPreset(id);
+    // Fast Studio mode: retain the current loaded vector source/layers.
+    // Choosing a preset changes only its prepared paint/layout overrides.
+    // The separate vector base selector remains available when required.
+    const document=studioCache.current.get(id,customPalette);
+    setActivePresetId(id);
+    setBasePresetId(id);
+    setStudioWarnings([]);
+    setVectorTheme(colorsForDocument(document));
+    setStudioDocument(document);
+    log("Atlas preset: "+preset.name+(customPalette?" · custom palette":"")+
+      " (instant Studio preview)");
+  };
+  const applyCustomPalette=(colors:string[]|null)=>{
+    const base=studioCache.current.get(basePresetId,colors);
+    // Custom edits take precedence over generated group styles while the
+    // base map remains the same, without remounting or fetching tiles.
+    if(colors && studioDocument.baseStyle===vectorStyle){
+      base.layers={...base.layers,...studioDocument.layers};
+    }
+    setCustomPalette(colors);
+    setActivePresetId(basePresetId);
+    setStudioWarnings([]);
+    setVectorTheme(colorsForDocument(base));
+    setStudioDocument(base);
+    log(colors?"Applied "+colors.length+"-colour palette to "+getAtlasPreset(basePresetId).name:
+      "Restored "+getAtlasPreset(basePresetId).name+" original palette");
+  };
+  const editStudioDocument=(document:AtlasStyleDocument)=>{
+    setActivePresetId(null);
+    setStudioDocument({...document,id:"custom-theme",name:"Custom theme",
+      metadata:{...document.metadata,preset:"custom",derivedFrom:basePresetId}});
+  };
   const switchTab=(name:Tab)=>{setTab(name);setMobileMenu(false);};
   const selectMode=(next:Mode)=>{setMode(next);setDraft([]);log("Tool: "+next);};
   const lookup=async(point:LatLng)=>{
@@ -382,26 +490,54 @@ export default function App(){
                     key={t.id} className={"basemap-card basemap-"+(t.id==="dark"?"dark":"light")+(vectorStyle===t.id?" selected":"")}
                     onPointerEnter={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
                     onFocus={()=>preloadVectorStyle(KEYLESS_VECTOR_STYLES[t.id])}
-                    onClick={()=>{setVectorStyle(t.id);log("Vector style: "+t.name);}}>
+                    onClick={()=>{setActivePresetId(null);setCustomPalette(null);setVectorStyle(t.id);setStudioLayers([]);log("Vector style: "+t.name);}}>
                     <span className="basemap-preview"><span className="road one"/><span className="road two"/><span className="water"/></span>
                     <strong>{t.name}</strong><small>{t.tag}</small>{vectorStyle===t.id&&<Check size={16} className="basemap-check"/>}
                   </button>)}</div>
                   <div className="muted-tip">Hosted by OpenFreeMap, an open-source OSM-derived tile system. No account or key. Self-hosting can be configured later.</div>
                 </section>
-                <section className="pane-section"><div className="section-heading"><div className="section-label">ATLAS VECTOR PALETTE</div>
-                    <button className="quiet-button" onClick={()=>setVectorTheme({...DEFAULT_VECTOR_THEME})}>Reset</button>
+                <div className="muted-tip" role="status" aria-label="Atlas preset cache status">
+                  {preparedPresets>0
+                    ?preparedPresets+" presets prepared in memory for "+vectorStyle+" · selecting a theme will not reload tiles."
+                    :"Preparing Studio preset cache from the loaded vector map…"}
+                  {" "}Changing the vector base above still reloads its distinct provider resources.
+                </div>
+                <PresetGallery activePresetId={activePresetId} basePresetId={basePresetId}
+                  palette={customPalette} onApply={choosePreset}/>
+                <PaletteEditor presetId={basePresetId} colors={customPalette}
+                  onChange={applyCustomPalette}/>
+                <MapDetailPanel layers={studioLayers} baseStyle={mapBaseStyle} settings={detailSettings}
+                  presetSettings={presetDetailSettings} presetName={getAtlasPreset(basePresetId).name}
+                  onChange={next=>setDetailOverrides(deriveMapDetailOverrides(presetDetailSettings,next))}
+                  onReset={()=>setDetailOverrides({roads:{},features:{}})}/>
+                <AdvancedRoadPanel settings={advancedSettings} onChange={changeAdvancedSettings} onReset={resetAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.roads}/>
+                <TypographyPanel settings={advancedSettings} onChange={changeAdvancedSettings} baseStyle={mapBaseStyle} presetColor={vectorTheme.labels}/>
+                <ZoomDetailPanel settings={advancedSettings} onChange={changeAdvancedSettings}
+                  currentZoom={view?.zoom??13}
+                  onPreviewZoom={zoom=>map.current?.setView(view?.center??GUWAHATI,zoom)}/>
+                <section className="pane-section"><div className="section-heading">
+                    <div className="section-label">EDIT THEME COLOURS</div>
+                    <span className="atlas-layer-count">{activePresetId?getAtlasPreset(activePresetId).name:"Custom"}</span>
                   </div>
                   <div className="vector-color-fields">{COLOR_FIELDS.map(([key,label,description])=><label className="vector-color-row" key={key}>
                     <span><strong>{label}</strong><small>{description}</small></span>
                     <input type="color" aria-label={label} value={vectorTheme[key]}
-                      onChange={event=>setVectorTheme(old=>({...old,[key]:event.target.value}))}/>
+                      onChange={event=>{
+                        const color=event.target.value;
+                        setVectorTheme(old=>({...old,[key]:color}));
+                        editStudioDocument({...studioDocument,groups:{
+                          ...studioDocument.groups,[key]:{...studioDocument.groups[key],color}
+                        }});
+                      }}/>
                   </label>)}</div>
                   <button className="secondary-button" onClick={()=>{
-                    downloadText("atlas-vector-theme.json",JSON.stringify({version:1,renderer:"maplibre",baseStyle:vectorStyle,colors:vectorTheme},null,2));
-                    log("Exported customizable vector theme");
-                  }}><Download size={16}/> Export Atlas theme JSON</button>
-                  <div className="muted-tip">These settings change feature colors in the vector renderer, not just a raster image filter. Some style layers use provider-specific classifications and may need advanced rules in a later release.</div>
+                    downloadText("atlas-style-v2.json",stringifyAtlasStyleDocument(effectiveStyleDocument));
+                    log("Exported Atlas style document v2");
+                  }}><Download size={16}/> Export editable style JSON (v2)</button>
+                  <div className="muted-tip">Presets apply immediately. Changing a colour or individual layer creates a Custom theme without altering the original preset. Layer bindings depend on the loaded vector style.</div>
                 </section>
+                <LayerEditor layers={studioLayers} document={studioDocument} onChange={editStudioDocument}/>
+                {studioWarnings.length>0&&<section className="pane-section"><div className="section-label">STYLE DIAGNOSTICS</div><div className="muted-tip">{studioWarnings.slice(0,3).join(" · ")}</div></section>}
               </>}
               {renderer==="raster"&&<>
                 <section className="pane-section"><div className="section-label">RASTER TILE SOURCE</div>
@@ -487,6 +623,26 @@ export default function App(){
               zoom={view?.zoom??13}
               styleUrl={KEYLESS_VECTOR_STYLES[vectorStyle]}
               theme={vectorTheme}
+              styleDocument={effectiveStyleDocument}
+              onStyleLayers={(layers,baseStyle)=>{
+                setMapBaseStyle(baseStyle??null);
+                // The inventory is provider-specific. Prepare all 81 Atlas
+                // recipes once; subsequent selections use independent copies.
+                studioCache.current.prepare(vectorStyle,layers);
+                setPreparedPresets(studioCache.current.size);
+                setStudioLayers(layers);
+                setStudioDocument(old=>{
+                  if(activePresetId){
+                    return studioCache.current.get(activePresetId,customPalette);
+                  }
+                  return {...old,baseStyle:vectorStyle,bindings:bindingsFor(layers),
+                    layers:old.baseStyle===vectorStyle?old.layers:{}};
+                });
+              }}
+              onStyleDiagnostics={diagnostics=>{
+                const relevant=diagnostics.filter(d=>d.severity==="error"||d.code.endsWith("REJECTED"));
+                setStudioWarnings(relevant.map(d=>d.code+": "+d.message));
+              }}
               renderQuality={quality}
               adaptiveResolution={adaptiveResolution}
               onResolutionChange={setResolutionState}
