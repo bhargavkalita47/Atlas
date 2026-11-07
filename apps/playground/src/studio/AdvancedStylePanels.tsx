@@ -1,16 +1,16 @@
 import {useMemo} from "react";
 import {
-  ROAD_TIERS,LABEL_ROLES,DETAIL_FEATURES,availableProviderFonts,
-  type AdvancedStyleSettings,type RoadTier,type LabelRole,type DetailFeature,
+  ROAD_TIERS,ROAD_CONTROL_GROUPS,ROAD_GROUP_TIERS,LABEL_ROLES,DETAIL_FEATURES,availableProviderFonts,
+  type AdvancedStyleSettings,type RoadTier,type RoadControlGroup,type LabelRole,type DetailFeature,
   type RoadDesign,type LabelDesign,type ZoomRange
 } from "@atlas/style-core";
 import {Route,Type,ZoomIn,RotateCcw} from "lucide-react";
 
 type Props={settings:AdvancedStyleSettings;onChange:(settings:AdvancedStyleSettings)=>void;baseStyle:unknown;presetColor?:string;onReset?:()=>void};
 const roadNames:Record<RoadTier,string>={
-  motorway:"Motorways & expressways",primary:"Primary roads",
-  secondary:"Secondary & tertiary roads",local:"Local & residential",
-  paths:"Service roads & paths"
+  motorway:"Motorways & expressways",primary:"Main city arteries (Primary)",
+  secondary:"Tertiary connectors (Secondary)",local:"Residential streets & bylanes (Secondary)",
+  paths:"Footpaths & cycleways"
 };
 const labelNames:Record<LabelRole,string>={
   city:"Cities & major places",locality:"Localities & neighbourhoods",
@@ -86,6 +86,11 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#719
   const set=(tier:RoadTier,changes:Partial<RoadDesign>)=>onChange({
     ...settings,roads:{...settings.roads,[tier]:{...settings.roads[tier],...changes}}
   });
+  const setGroup=(group:RoadControlGroup,changes:Partial<RoadDesign>)=>{
+    const roads={...settings.roads};
+    for(const tier of ROAD_GROUP_TIERS[group])roads[tier]={...roads[tier],...changes};
+    onChange({...settings,roads});
+  };
   return <section className="pane-section atlas-advanced-panel" aria-label="Advanced road styling">
     <div className="section-heading">
       <div className="section-label"><Route size={14}/> ADVANCED ROAD STYLING</div>
@@ -93,7 +98,27 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#719
         <RotateCcw size={13}/> Reset advanced design to preset
       </button>}
     </div>
-    <p className="atlas-detail-intro">Each theme now has a designed road hierarchy. Fine-tune colour, width, casing, dash pattern and visibility. Untouched values follow the current preset.</p>
+    <p className="atlas-detail-intro">Primary Roads styles main arterial roads and highways. Secondary Roads styles residential streets, bylanes and small connections. Shared map layers are styled per road class with no primary/secondary overlap.</p>
+    {ROAD_CONTROL_GROUPS.filter(group=>group!=="paths").map(group=>{
+      const name=group==="primaryRoads"?"Primary Roads":"Secondary Roads";
+      const members=ROAD_GROUP_TIERS[group].map(tier=>settings.roads[tier]);
+      const color=members.every(x=>x.color===members[0].color)?members[0].color:null;
+      const width=members.every(x=>x.width===members[0].width)?members[0].width:null;
+      const visibility=members.every(x=>x.visible===members[0].visible)?members[0].visible:null;
+      return <details className="atlas-design-fold" key={group} open>
+        <summary>{name}<span>{group==="primaryRoads"?"Highways and main arteries":"Residential and small connectors"}</span></summary>
+        <div className="atlas-design-grid">
+          <OverrideColor name={name+" group road"} value={color} defaultColor={presetColor}
+            onChange={next=>setGroup(group,{color:next})}/>
+          <OverrideSlider name={name+" group width"} value={width} initial={3}
+            min={.25} max={24} step={.05} unit=" px" onChange={next=>setGroup(group,{width:next})}/>
+          <VisibleSelector name={name+" group"} value={visibility}
+            onChange={next=>setGroup(group,{visible:next})}/>
+        </div>
+      </details>;
+    })}
+    <details className="atlas-design-fold" open>
+      <summary>Fine-tune road subcategories <span>Five exclusive tiers</span></summary>
     {ROAD_TIERS.map(tier=><details className="atlas-design-fold" key={tier} open={tier==="primary"||tier==="secondary"?true:undefined}>
       <summary>{roadNames[tier]}<span>Style</span></summary>
       <div className="atlas-design-grid">
@@ -115,6 +140,7 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#719
           onChange={visible=>set(tier,{visible})}/>
       </div>
     </details>)}
+    </details>
     <p className="atlas-detail-footnote">
       Casing changes modify existing provider casing layers{hasCasings?" (detected in this map).":" (none detected in this map)."}
       On mixed road layers, Atlas matches the road class per feature. Some providers do not expose every category.
@@ -176,7 +202,23 @@ export function ZoomDetailPanel({settings,onChange,currentZoom,onPreviewZoom}:Om
       {[5,9,13,16,19].map(z=><button type="button" key={z}
         aria-label={"Preview zoom "+z} onClick={()=>onPreviewZoom(z)}>{z}</button>)}
     </div>
-    <details className="atlas-design-fold" open><summary>Road class zoom ranges<span>5 classes</span></summary>
+    <details className="atlas-design-fold" open><summary>Road class zoom ranges<span>2 driving groups + paths</span></summary>
+      {ROAD_CONTROL_GROUPS.filter(group=>group!=="paths").map(group=>{
+        const members=ROAD_GROUP_TIERS[group];
+        const ranges=members.map(tier=>settings.roads[tier].zoom);
+        const common={
+          min:ranges.every(r=>r.min===ranges[0].min)?ranges[0].min:null,
+          max:ranges.every(r=>r.max===ranges[0].max)?ranges[0].max:null
+        };
+        const name=group==="primaryRoads"?"Primary Roads":"Secondary Roads";
+        return <RangeField key={group} name={name} range={common}
+          onChange={zoom=>{
+            const roads={...settings.roads};
+            for(const tier of members)roads[tier]={...roads[tier],zoom:{...zoom}};
+            onChange({...settings,roads});
+          }}/>;
+      })}
+      <div className="atlas-detail-subtitle"><span>FINE-GRAINED ROAD ZOOM</span></div>
       {ROAD_TIERS.map(tier=><RangeField key={tier} name={roadNames[tier]} range={settings.roads[tier].zoom}
         onChange={zoom=>roads(tier,zoom)}/>)}
     </details>
