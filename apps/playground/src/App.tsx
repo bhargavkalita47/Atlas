@@ -506,7 +506,7 @@ export default function App(){
                   <button className={renderer==="raster"?"selected":""} onClick={()=>setRenderer("raster")}>Raster · fallback</button>
                 </div>
                 <div className="muted-tip">Vector mode uses MapLibre and keyless OSM-derived tiles. Raster fallback uses standard OpenStreetMap tiles. Neither requires a paid API key.</div>
-              </section>
+              </section>}
               {renderer==="vector"&&styleSection==="setup"&&<section className="pane-section">
                 <div className="section-label">RENDERING QUALITY</div>
                 <div className="filter-options">
