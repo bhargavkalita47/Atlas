@@ -45,6 +45,8 @@ const allowedKeys=(v:Record<string,unknown>,keys:readonly string[])=>Object.keys
 const objectKeys=(v:unknown,keys:readonly string[]):v is Record<string,unknown>=>isRecord(v)&&allowedKeys(v,keys);
 const isPercent=(v:unknown)=>typeof v==="number"&&Number.isFinite(v)&&v>=0&&v<=100;
 const isZoom=(v:unknown)=>typeof v==="number"&&Number.isFinite(v)&&v>=0&&v<=24;
+const isZoomOrNull=(v:unknown)=>v===null||isZoom(v);
+const isHexOrNull=(v:unknown)=>v===null||isHex(v);
 function checkOverrides(bundle:Record<string,unknown>):boolean{
   const detail=bundle.detailOverrides;
   if(!objectKeys(detail,["roads","features"])||
@@ -70,13 +72,13 @@ function checkOverrides(bundle:Record<string,unknown>):boolean{
   ] as const){
     for(const v of Object.values(items)){
       if(!objectKeys(v,keys))return false;
-      if(kind==="features"&&Object.values(v).some(x=>!isZoom(x)))return false;
+      if(kind==="features"&&Object.values(v).some(x=>!isZoomOrNull(x)))return false;
       if(kind!=="features"){
-        if(v.zoom!==undefined&&(!objectKeys(v.zoom,["min","max"])||Object.values(v.zoom).some(x=>!isZoom(x))))return false;
-        if(v.color!==undefined&&!isHex(v.color))return false;
-        if(v.outlineColor!==undefined&&!isHex(v.outlineColor))return false;
-        if(v.visible!==undefined&&typeof v.visible!=="boolean")return false;
-        if(v.fontStack!==undefined&&(!Array.isArray(v.fontStack)||v.fontStack.some(x=>typeof x!=="string"||x.length>256)))return false;
+        if(v.zoom!==undefined&&(!objectKeys(v.zoom,["min","max"])||Object.values(v.zoom).some(x=>!isZoomOrNull(x))))return false;
+        if(v.color!==undefined&&!isHexOrNull(v.color))return false;
+        if(v.outlineColor!==undefined&&!isHexOrNull(v.outlineColor))return false;
+        if(v.visible!==undefined&&v.visible!==null&&typeof v.visible!=="boolean")return false;
+        if(v.fontStack!==undefined&&v.fontStack!==null&&(!Array.isArray(v.fontStack)||v.fontStack.some(x=>typeof x!=="string"||x.length>256)))return false;
       }
     }
   }
@@ -124,7 +126,7 @@ export function validateAtlasThemeBundle(value:unknown):string[]{
 export function createAtlasThemeBundle(input:AtlasThemeBundleInput):AtlasThemeBundle{
   const bundle:AtlasThemeBundle={
     format:"atlas-theme",schemaVersion:1,styleDocumentVersion:2,
-    ...JSON.parse(JSON.stringify(input)) as AtlasThemeBundleInput
+    ...(JSON.parse(JSON.stringify(input)) as AtlasThemeBundleInput)
   };
   const errors=validateAtlasThemeBundle(bundle);
   if(errors.length)throw new Error(errors.join(" "));
