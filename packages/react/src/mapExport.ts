@@ -5,14 +5,75 @@ const escapeXml=(value:string)=>value.replace(/[&<>"']/g,c=>({
   "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"
 }[c]!));
 const markerColor=(value:string|undefined)=>value&&/^#[0-9a-f]{6}$/i.test(value)?value:"#5365da";
-const attribution=(map:MapLibreMap)=>
-  map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.textContent?.trim()||
-  "© OpenStreetMap contributors";
+const attribution=(map:MapLibreMap)=>{
+  const raw=map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.textContent?.trim()||"";
+  const extra=raw.replace(/^MapLibre\\s*/i,"").trim();
+  return /OpenStreetMap/i.test(extra)?extra:
+    "© OpenStreetMap contributors"+(extra?" · "+extra:"");
+};
 const targetSize=(map:MapLibreMap)=>{
   const canvas=map.getCanvas();
   return {width:canvas.clientWidth||map.getContainer().clientWidth,
     height:canvas.clientHeight||map.getContainer().clientHeight};
 };
+
+/**
+ * Some third-party vector providers and inline GeoJSON sources are not
+ * supported by the independent SVG tile renderer. In that case export
+ * the features already rendered in MapLibre as genuine projected SVG
+ * geometry rather than returning a blank SVG or embedding a bitmap.
+ * Symbol placement and expression-driven paints remain approximate.
+ */
+function renderVisibleFeaturesSvg(map:MapLibreMap,width:number,height:number):string{
+  const style=map.getStyle();
+  const background=style.layers?.find(layer=>layer.type==="background");
+  const bgValue=(background?.paint as Record<string,unknown>|undefined)?.["background-color"];
+  const color=(value:unknown,fallback:string):string=>
+    typeof value==="string"&&/^(?:#[a-fA-F0-9]{3,8}|rgba?\\([0-9.,%\\s]+\\))$/.test(value)?value:fallback;
+  const fill=color(bgValue,"#F7F7F5");
+  const px=(coord:readonly number[])=>{
+    const p=map.project([coord[0]!,coord[1]!]);
+    return p.x.toFixed(2)+" "+p.y.toFixed(2);
+  };
+  const linePath=(coords:readonly (readonly number[])[],close=false):string=>
+    coords.length?"M"+coords.map(px).join(" L")+(close?" Z":""):"";
+  const elements:string[]=[];
+  // Query results are top-first. Reverse for correct paint order.
+  const features=map.queryRenderedFeatures().slice(0,16000).reverse();
+  for(const feature of features){
+    const layer=feature.layer;
+    if(layer.type!=="fill"&&layer.type!=="line"&&layer.type!=="circle")continue;
+    const paint=(layer.paint??{}) as Record<string,unknown>;
+    const type=feature.geometry.type;
+    const geom=feature.geometry;
+    if(layer.type==="circle"&&(type==="Point"||type==="MultiPoint")){
+      const positions=type==="Point"?[geom.coordinates]:(geom.coordinates as number[][]);
+      const r=typeof paint["circle-radius"]==="number"?paint["circle-radius"]:4;
+      const ink=color(paint["circle-color"],"#5877A5");
+      for(const p of positions){
+        const center=map.project([p[0]!,p[1]!]);
+        elements.push(`<circle cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" r="${Math.max(0,r)}" fill="${ink}"/>`);
+      }
+      continue;
+    }
+    const paths:string[]=[];
+    if(geom.type==="LineString")paths.push(linePath(geom.coordinates));
+    else if(geom.type==="MultiLineString")for(const line of geom.coordinates)paths.push(linePath(line));
+    else if(geom.type==="Polygon")for(const ring of geom.coordinates)paths.push(linePath(ring,true));
+    else if(geom.type==="MultiPolygon")for(const poly of geom.coordinates)for(const ring of poly)paths.push(linePath(ring,true));
+    if(!paths.length)continue;
+    if(layer.type==="fill"){
+      const ink=color(paint["fill-color"],"#DCE4DF");
+      elements.push(`<path d="${paths.join(" ")}" fill="${ink}" fill-rule="evenodd"/>`);
+    }else if(layer.type==="line"){
+      const ink=color(paint["line-color"],"#8D9A9F");
+      const w=typeof paint["line-width"]==="number"?Math.max(0,paint["line-width"]):1.5;
+      elements.push(`<path d="${paths.join(" ")}" fill="none" stroke="${ink}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>`);
+    }
+  }
+  if(!elements.length)throw new Error("No exportable vector features are visible. Try another zoom or provider.");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><clipPath id="atlas-export-clip"><rect width="${width}" height="${height}"/></clipPath></defs><rect width="${width}" height="${height}" fill="${fill}"/><g id="atlas-rendered-features" clip-path="url(#atlas-export-clip)">${elements.join("")}</g></svg>`;
+}
 
 /** SVG geometry comes from the actual styled vector data, not a PNG data URI. */
 export async function exportVectorSvg(map:MapLibreMap,markers:readonly MarkerData[]):Promise<Blob>{
@@ -26,6 +87,10 @@ export async function exportVectorSvg(map:MapLibreMap,markers:readonly MarkerDat
     style:map.getStyle(),width,height,lon:center.lng,lat:center.lat,zoom:map.getZoom()
   });
   if(!svg.includes("</svg>"))throw new Error("SVG renderer returned an invalid map.");
+  // A renderer can resolve successfully but silently skip unsupported sources.
+  // Detect empty geometry and convert MapLibre's *visible* features instead.
+  if(!/<(?:path|rect|circle|polygon|polyline|image|text)\\b/i.test(svg))
+    svg=renderVisibleFeaturesSvg(map,width,height);
   const elements:string[]=[];
   for(const marker of markers){
     const p=map.project([marker.point.lng,marker.point.lat]);
