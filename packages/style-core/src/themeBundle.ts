@@ -1,11 +1,14 @@
-import {validateStyleDocument,type AtlasStyleDocument} from "./index";
+import {validateStyleDocument,type AtlasStyleDocument,type StyleLayerDescriptor} from "./index";
 import type {MapDetailOverrides} from "./detailControls";
 import type {AdvancedOverrides} from "./presetAdvanced";
 import type {SemanticOverrides} from "./presetSemantic";
-import {ATLAS_STYLE_PRESETS} from "./presets";
-import {ROAD_TIERS,DETAIL_FEATURES} from "./detailControls";
-import {LABEL_ROLES} from "./advancedStyle";
-import {SEMANTIC_KEYS} from "./semanticFeatures";
+import {ATLAS_STYLE_PRESETS,getAtlasPreset} from "./presets";
+import {ROAD_TIERS,DETAIL_FEATURES,applyMapDetailControls,mergeMapDetailOverrides} from "./detailControls";
+import {LABEL_ROLES,applyAdvancedStyleControls} from "./advancedStyle";
+import {SEMANTIC_KEYS,applySemanticFeatureControls} from "./semanticFeatures";
+import {getAtlasPresetDetailSettings} from "./presetDetails";
+import {getAtlasPresetAdvancedSettings,mergeAdvancedOverrides} from "./presetAdvanced";
+import {getAtlasPresetSemanticSettings,mergeSemanticOverrides} from "./presetSemantic";
 
 /**
  * Portable Atlas Lab customization preset, not a tile dataset or a precompiled
@@ -144,4 +147,42 @@ export function stringifyAtlasThemeBundle(bundle:AtlasThemeBundle):string{
   const errors=validateAtlasThemeBundle(bundle);
   if(errors.length)throw new Error(errors.join(" "));
   return JSON.stringify(bundle,null,2)+"\n";
+}
+
+/**
+ * App-facing adapter: reproduce Atlas Lab's full theme against the matching
+ * provider style. The caller supplies the loaded provider's inspected layers
+ * and base style; this function never fetches tiles or mutates the input.
+ * Pass the result to AtlasVectorMap.styleDocument.
+ */
+export function resolveAtlasThemeBundle(
+  bundle:AtlasThemeBundle,layers:readonly StyleLayerDescriptor[],baseStyle:unknown
+):AtlasStyleDocument{
+  const errors=validateAtlasThemeBundle(bundle);
+  if(errors.length)throw new Error(errors.join(" "));
+  const preset=getAtlasPreset(bundle.presetId);
+  const doc=JSON.parse(JSON.stringify(bundle.document)) as AtlasStyleDocument;
+  const groups=doc.groups;
+  const detail=mergeMapDetailOverrides(getAtlasPresetDetailSettings(bundle.presetId),bundle.detailOverrides);
+  const advanced=mergeAdvancedOverrides(getAtlasPresetAdvancedSettings(bundle.presetId,{
+    land:groups.land?.color??preset.palette.land,
+    roads:groups.roads?.color??preset.palette.roads,
+    labels:groups.labels?.color??preset.palette.labels
+  }),bundle.advancedOverrides);
+  const semantic=mergeSemanticOverrides(getAtlasPresetSemanticSettings(bundle.presetId,{
+    land:groups.land?.color??preset.palette.land,
+    water:groups.water?.color??preset.palette.water,
+    parks:groups.parks?.color??preset.palette.parks,
+    roads:groups.roads?.color??preset.palette.roads,
+    buildings:groups.buildings?.color??preset.palette.buildings,
+    labels:groups.labels?.color??preset.palette.labels,
+    boundaries:groups.boundaries?.color??preset.palette.boundaries,
+    transit:groups.transit?.color??preset.palette.transit,
+    poi:groups.poi?.color??preset.palette.poi
+  }),bundle.semanticOverrides);
+  return applySemanticFeatureControls(
+    applyAdvancedStyleControls(
+      applyMapDetailControls(doc,layers,detail,baseStyle),layers,advanced,baseStyle
+    ),layers,semantic,baseStyle
+  );
 }
