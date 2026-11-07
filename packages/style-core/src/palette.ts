@@ -7,6 +7,8 @@ import {applyMapDetailControls} from "./detailControls";
 import {getAtlasPresetDetailSettings} from "./presetDetails";
 import {applyAdvancedStyleControls} from "./advancedStyle";
 import {getAtlasPresetAdvancedSettings} from "./presetAdvanced";
+import {applySemanticFeatureControls} from "./semanticFeatures";
+import {getAtlasPresetSemanticSettings} from "./presetSemantic";
 
 /**
  * Atlas Palette Reskin Engine v1. Works only on CSS-free, opaque sRGB hex
@@ -163,5 +165,6 @@ export function reskinAtlasPreset(
     paletteEngineVersion:1,paletteReskin:true};
   if(options.includeDetails===false)return document;
   const styled=applyMapDetailControls(document,layers,getAtlasPresetDetailSettings(presetId),options.baseStyle);
-  return applyAdvancedStyleControls(styled,layers,getAtlasPresetAdvancedSettings(presetId,roles),options.baseStyle);
+  const advanced=applyAdvancedStyleControls(styled,layers,getAtlasPresetAdvancedSettings(presetId,roles),options.baseStyle);
+  return applySemanticFeatureControls(advanced,layers,getAtlasPresetSemanticSettings(presetId,roles),options.baseStyle);
 }
