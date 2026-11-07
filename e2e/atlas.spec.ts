@@ -480,3 +480,55 @@ test("curated road type and zoom profiles follow presets while manual edits surv
   expect(styleRequests).toBe(before);
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 });
+
+test("Primary and Secondary road controls never change each other's city street tiers",async({page})=>{
+  let styleRequests=0;
+  await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
+    styleRequests++;
+    await route.fulfill({status:200,contentType:"application/json",
+      headers:{"access-control-allow-origin":"*"},body:JSON.stringify(fixtureStyle)});
+  });
+  await page.goto("/");
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await expect(page.locator('section[aria-label="Map detail controls"]')).toBeVisible();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await page.waitForLoadState("networkidle");
+  const initial=styleRequests;
+  const main=page.locator('input[aria-label="Primary Roads opacity"]');
+  const small=page.locator('input[aria-label="Secondary Roads opacity"]');
+  const motorway=page.locator('input[aria-label="Motorways & highways opacity"]');
+  const arterial=page.locator('input[aria-label="Arterial roads (Primary) opacity"]');
+  const tertiary=page.locator('input[aria-label="Tertiary connectors (Secondary) opacity"]');
+  const residential=page.locator('input[aria-label="Neighbourhood roads (Secondary) opacity"]');
+  const paths=page.locator('input[aria-label="Walking and cycling paths opacity"]');
+  const beforeSmall=[await tertiary.inputValue(),await residential.inputValue()];
+  const beforePaths=await paths.inputValue();
+  await main.fill("20");
+  await expect(motorway).toHaveValue("20");
+  await expect(arterial).toHaveValue("20");
+  await expect(tertiary).toHaveValue(beforeSmall[0]);
+  await expect(residential).toHaveValue(beforeSmall[1]);
+  await expect(paths).toHaveValue(beforePaths);
+  await small.fill("32");
+  await expect(tertiary).toHaveValue("32");
+  await expect(residential).toHaveValue("32");
+  await expect(motorway).toHaveValue("20");
+  await expect(arterial).toHaveValue("20");
+  await expect(paths).toHaveValue(beforePaths);
+  const primaryColor=page.getByRole("checkbox",{name:"Primary Roads group road custom"});
+  const secondaryColor=page.getByRole("checkbox",{name:"Secondary Roads group road custom"});
+  await primaryColor.check();
+  await expect(primaryColor).toBeChecked();
+  await expect(secondaryColor).not.toBeChecked();
+  const primaryVisibility=page.getByRole("combobox",{name:"Primary Roads group visibility"});
+  const secondaryVisibility=page.getByRole("combobox",{name:"Secondary Roads group visibility"});
+  await primaryVisibility.selectOption("hide");
+  await expect(secondaryVisibility).toHaveValue("inherit");
+  await primaryVisibility.selectOption("inherit");
+  await secondaryVisibility.selectOption("hide");
+  await expect(primaryVisibility).toHaveValue("inherit");
+  await expect(main).toHaveValue("20");
+  await expect(small).toHaveValue("32");
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  expect(styleRequests).toBe(initial);
+});
