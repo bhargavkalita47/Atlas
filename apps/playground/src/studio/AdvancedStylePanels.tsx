@@ -102,9 +102,9 @@ export function AdvancedRoadPanel({settings,onChange,baseStyle,presetColor="#719
     {ROAD_CONTROL_GROUPS.filter(group=>group!=="paths").map(group=>{
       const name=group==="primaryRoads"?"Primary Roads":"Secondary Roads";
       const members=ROAD_GROUP_TIERS[group].map(tier=>settings.roads[tier]);
-      const color=members.every(x=>x.color===members[0].color)?members[0].color:null;
-      const width=members.every(x=>x.width===members[0].width)?members[0].width:null;
-      const visibility=members.every(x=>x.visible===members[0].visible)?members[0].visible:null;
+      const color=members.every(x=>x.color===members[0]!.color)?members[0]!.color:null;
+      const width=members.every(x=>x.width===members[0]!.width)?members[0]!.width:null;
+      const visibility=members.every(x=>x.visible===members[0]!.visible)?members[0]!.visible:null;
       return <details className="atlas-design-fold" key={group} open>
         <summary>{name}<span>{group==="primaryRoads"?"Highways and main arteries":"Residential and small connectors"}</span></summary>
         <div className="atlas-design-grid">
@@ -207,8 +207,8 @@ export function ZoomDetailPanel({settings,onChange,currentZoom,onPreviewZoom}:Om
         const members=ROAD_GROUP_TIERS[group];
         const ranges=members.map(tier=>settings.roads[tier].zoom);
         const common={
-          min:ranges.every(r=>r.min===ranges[0].min)?ranges[0].min:null,
-          max:ranges.every(r=>r.max===ranges[0].max)?ranges[0].max:null
+          min:ranges.every(r=>r.min===ranges[0]!.min)?ranges[0]!.min:null,
+          max:ranges.every(r=>r.max===ranges[0]!.max)?ranges[0]!.max:null
         };
         const name=group==="primaryRoads"?"Primary Roads":"Secondary Roads";
         return <RangeField key={group} name={name} range={common}
