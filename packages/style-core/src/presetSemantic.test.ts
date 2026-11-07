@@ -1,6 +1,7 @@
 import {describe,it,expect} from "vitest";
 import {ATLAS_STYLE_PRESETS,createAtlasPresetDocument} from "./presets";
 import {getAtlasPresetAdvancedSettings} from "./presetAdvanced";
+import {reskinAtlasPreset} from "./palette";
 import {applyAdvancedStyleControls} from "./advancedStyle";
 import {ATLAS_SEMANTIC_PROFILE_VERSION,getAtlasPresetSemanticSettings,
  createSemanticOverrides,mergeSemanticOverrides,deriveSemanticOverrides} from "./presetSemantic";
@@ -97,6 +98,23 @@ describe("81 Stage 3 semantic theme recipes",()=>{
      }
      expect(JSON.stringify(base)).toBe(original);
    }
+ });
+ it("packages the full semantic design into portable built-in and reskinned style documents",()=>{
+   const provider=SEMANTIC_PROVIDER_FIXTURES.bright,layers=inspectStyleLayers(provider);
+   const complete=createAtlasPresetDocument("hiking",layers,{baseStyle:provider});
+   expect(complete.metadata?.presetSemanticVersion).toBe(1);
+   expect(complete.metadata?.semanticFeatureVersion).toBe(1);
+   const forestColor=getAtlasPresetSemanticSettings("hiking").forests.color;
+   expect(JSON.stringify(complete.layers["landcover-wood"]?.paint)).toContain(forestColor!);
+   const custom=reskinAtlasPreset("hiking",
+     ["#192737","#6DA7D3","#6CA68C","#F6D6A0","#BD819A"],layers,{baseStyle:provider});
+   expect(custom.metadata?.presetSemanticVersion).toBe(1);
+   expect(custom.metadata?.semanticFeatureVersion).toBe(1);
+   const waterColor=custom.groups.water?.color;
+   expect(JSON.stringify(custom.layers["water"]?.paint)).toContain(waterColor!);
+   expect(JSON.stringify(complete.layers["water"]?.paint))
+     .not.toBe(JSON.stringify(custom.layers["water"]?.paint));
+   expect(validateStyleDocument(custom)).toEqual([]);
  });
  it("preserves the Tokyo Neon road and type revert, while updating features",()=>{
    const tokyo=getAtlasPresetAdvancedSettings("tokyo-neon");
