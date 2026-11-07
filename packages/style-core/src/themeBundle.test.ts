@@ -2,7 +2,7 @@ import {describe,it,expect} from "vitest";
 import {createAtlasPresetDocument} from "./presets";
 import {createAdvancedOverrides} from "./presetAdvanced";
 import {createSemanticOverrides} from "./presetSemantic";
-import {createAtlasThemeBundle,parseAtlasThemeBundle,stringifyAtlasThemeBundle,validateAtlasThemeBundle} from "./themeBundle";
+import {createAtlasThemeBundle,parseAtlasThemeBundle,stringifyAtlasThemeBundle,validateAtlasThemeBundle,resolveAtlasThemeBundle} from "./themeBundle";
 
 const fixture=()=>{
   const document=createAtlasPresetDocument("minimal-light",[],{includeDetails:false});
@@ -30,6 +30,16 @@ describe("Atlas theme export/import",()=>{
     expect(imported.advancedOverrides.labels.road?.halo).toBe(false);
     expect(imported.detailOverrides.roads.secondary).toBe(40);
     expect(imported.semanticOverrides.waterBodies?.opacity).toBe(75);
+  });
+  it("accepts nullable edits and resolves a reusable theme without mutating the source",()=>{
+    const first=fixture();
+    first.advancedOverrides.roads.primary={color:null,visible:null,zoom:{min:null}};
+    first.semanticOverrides.waterBodies={color:null,visible:null,zoom:{min:null}};
+    expect(validateAtlasThemeBundle(first)).toEqual([]);
+    const untouched=JSON.stringify(first);
+    const applied=resolveAtlasThemeBundle(first,[],{version:8,sources:{},layers:[]});
+    expect(applied.schemaVersion).toBe(2);
+    expect(JSON.stringify(first)).toBe(untouched);
   });
   it("rejects invalid versions and unsupported providers",()=>{
     expect(validateAtlasThemeBundle({...fixture(),schemaVersion:99})).not.toEqual([]);
