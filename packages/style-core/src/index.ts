@@ -325,3 +325,7 @@ export type {RoadControlGroup} from "./detailControls";
 export {SEMANTIC_FAMILIES,SEMANTIC_FEATURES,SEMANTIC_KEYS,createSemanticFeatureSettings,
   inspectSemanticCoverage,validateSemanticFeatureSettings,applySemanticFeatureControls} from "./semanticFeatures";
 export type {SemanticFamily,SemanticFeature,SemanticStyleSettings,FeatureDesign,FeatureSupport} from "./semanticFeatures";
+
+export {ATLAS_SEMANTIC_PROFILE_VERSION,getAtlasPresetSemanticSettings,createSemanticOverrides,
+  deriveSemanticOverrides,mergeSemanticOverrides} from "./presetSemantic";
+export type {SemanticPaletteOverride,SemanticOverrides,SemanticFeatureOverride} from "./presetSemantic";
