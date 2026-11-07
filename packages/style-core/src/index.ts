@@ -329,3 +329,6 @@ export type {SemanticFamily,SemanticFeature,SemanticStyleSettings,FeatureDesign,
 export {ATLAS_SEMANTIC_PROFILE_VERSION,getAtlasPresetSemanticSettings,createSemanticOverrides,
   deriveSemanticOverrides,mergeSemanticOverrides} from "./presetSemantic";
 export type {SemanticPaletteOverride,SemanticOverrides,SemanticFeatureOverride} from "./presetSemantic";
+
+export {ATLAS_THEME_BUNDLE_VERSION,ATLAS_VECTOR_BASES,createAtlasThemeBundle,parseAtlasThemeBundle,stringifyAtlasThemeBundle,validateAtlasThemeBundle} from "./themeBundle";
+export type {AtlasThemeBundle,AtlasThemeBundleInput,AtlasVectorBase} from "./themeBundle";
