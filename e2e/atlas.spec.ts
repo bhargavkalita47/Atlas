@@ -166,6 +166,7 @@ test.describe("zoom-safe adaptive resolution on dense displays",()=>{
     await page.mouse.up();
     await expect.poll(pixelRatio,{timeout:5000}).toBeGreaterThan(1.4);
     await page.getByRole("button",{name:"Style studio"}).click();
+    await page.getByRole("tab",{name:"Map setup",exact:true}).click();
     await page.getByRole("button",{name:"Dynamic resolution scaling: On"}).click();
     await expect(page.getByRole("button",{name:"Dynamic resolution scaling: Off"})).toBeVisible();
     await expect(canvas).toBeVisible();
