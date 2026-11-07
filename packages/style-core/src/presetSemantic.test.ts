@@ -45,6 +45,26 @@ describe("81 Stage 3 semantic theme recipes",()=>{
    expect(transit.railways.width!).toBeGreaterThan(nav.railways.width!);
    expect(getAtlasPresetSemanticSettings("emergency").poiHealth.visible).toBe(true);
  });
+ it("tunes every preset with class-level feature density and functional zoom hierarchy",()=>{
+   for(const preset of ATLAS_STYLE_PRESETS){
+     const profile=getAtlasPresetSemanticSettings(preset.id);
+     expect(profile.poiTransit.zoom.min,preset.id).toBeLessThan(profile.poiShopping.zoom.min!);
+     expect(profile.poiHealth.zoom.min,preset.id).toBeLessThan(profile.poiFood.zoom.min!);
+     expect(profile.buildings.zoom.min,preset.id).toBeGreaterThanOrEqual(12);
+     expect(profile.localBorders.zoom.min,preset.id).toBeGreaterThanOrEqual(8);
+     expect(profile.railways.zoom.min,preset.id).toBeGreaterThanOrEqual(9);
+   }
+   const editorial=getAtlasPresetSemanticSettings("museum");
+   const minimal=getAtlasPresetSemanticSettings("minimal-light");
+   expect(editorial.buildings.outlineColor).toMatch(/^#[A-F0-9]{6}$/);
+   expect(minimal.buildings.outlineColor).toBeNull();
+   expect(getAtlasPresetSemanticSettings("high-contrast").poiHealth.iconSize)
+     .toBeGreaterThan(minimal.poiHealth.iconSize!);
+   expect(getAtlasPresetSemanticSettings("pastel-city").gardens.opacity)
+     .toBeGreaterThan(minimal.gardens.opacity!);
+   expect(getAtlasPresetSemanticSettings("mint-pop").parks.opacity).toBe(100);
+   expect(getAtlasPresetSemanticSettings("graphite-mono").poiShopping.visible).toBe(false);
+ });
  it("recolours every secondary shade when a custom palette changes",()=>{
    const old=getAtlasPresetSemanticSettings("paper-ink");
    const fresh=getAtlasPresetSemanticSettings("paper-ink",{
@@ -134,5 +154,17 @@ describe("81 Stage 3 semantic theme recipes",()=>{
    expect(editorial.labels.city.halo).toBe(false);
    expect(neon.labels.city.halo).toBe(true);
    expect(accessible.labels.city.outline).toBe(true);
+   const arcade=getAtlasPresetAdvancedSettings("arcade");
+   const eighties=getAtlasPresetAdvancedSettings("eighties-grid");
+   const archive=getAtlasPresetAdvancedSettings("sepia-archive");
+   const noir=getAtlasPresetAdvancedSettings("film-noir");
+   expect(arcade.labels.city.halo).toBe(true);
+   expect(arcade.labels.city.outline).toBe(false);
+   expect(eighties.labels.locality.halo).toBe(true);
+   expect(eighties.labels.road.halo).toBe(false);
+   expect(archive.labels.city.halo).toBe(false);
+   expect(archive.labels.city.outline).toBe(true);
+   expect(noir.labels.city.outline).toBe(false);
+   expect(noir.labels.city.halo).toBe(false);
  });
 });
