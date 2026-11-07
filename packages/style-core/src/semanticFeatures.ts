@@ -329,7 +329,11 @@ export function applySemanticFeatureControls(
       // Zoom can appear only as the direct input of a top-level
       // interpolate/step. Do not nest provider zoom expressions inside
       // another step just to force a per-class visibility threshold.
-      if(stops.length>1&&hasZoom(originalValue)){
+      const unsupportedZoomMask=stops.length>1&&hasZoom(originalValue);
+      if(unsupportedZoomMask){
+        // A zoom expression cannot legally be nested beneath an outer step.
+        // Keep source zoom behaviour and the theme's class opacity instead
+        // of accidentally treating z=0 as a permanent hide.
         warnings.push("Per-feature zoom thresholds require a numeric opacity in "+layer.id);
       }
       const safeStops=hasZoom(originalValue)?[0]:stops;
@@ -339,8 +343,8 @@ export function applySemanticFeatureControls(
           const cfg=settings[k];
           const disabled=cfg.visible===false||
             restoring&&cfg.visible!==true||
-            cfg.zoom.min!==null&&z<cfg.zoom.min||
-            cfg.zoom.max!==null&&z>=cfg.zoom.max;
+            !unsupportedZoomMask&&cfg.zoom.min!==null&&z<cfg.zoom.min||
+            !unsupportedZoomMask&&cfg.zoom.max!==null&&z>=cfg.zoom.max;
           const altered:JsonValue=disabled?0:cfg.opacity===null?stop:
             typeof stop==="number"?Number((stop*cfg.opacity/100).toFixed(5)):
               ["*",stop,cfg.opacity/100];
