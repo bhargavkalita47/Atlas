@@ -278,8 +278,14 @@ export function applySemanticFeatureControls(
   for(const layer of layers){
     const base=originals.get(layer.id);
     if(!base)continue;
-    const keys=relevant(layer,base).filter(k=>fullChange(settings[k]));
+    const candidates=relevant(layer,base);
+    const keys=candidates.filter(k=>fullChange(settings[k]));
     if(!keys.length)continue;
+    const upstreamHidden=doc.groups[layer.suggestedGroup!]?.visible===false||
+      doc.layers[layer.id]?.layout?.visibility==="none"||
+      isObj(base.layout)&&base.layout.visibility==="none";
+    const restoring=Boolean(upstreamHidden&&keys.some(k=>settings[k].visible===true));
+    if(restoring)layout(doc,layer.id,"visibility","visible");
     const colourProp=layer.type==="fill"?"fill-color":layer.type==="line"?"line-color":
       layer.type==="fill-extrusion"?"fill-extrusion-color":layer.type==="symbol"?"text-color":null;
     if(colourProp){
@@ -305,8 +311,10 @@ export function applySemanticFeatureControls(
         !(isObj(base.layout)&&base.layout["text-field"]!==undefined))continue;
       if(layer.type==="symbol"&&prop==="icon-opacity"&&
         !(isObj(base.layout)&&base.layout["icon-image"]!==undefined))continue;
-      const edits=keys.filter(k=>settings[k].opacity!==null||settings[k].visible!==null||
-        settings[k].zoom.min!==null||settings[k].zoom.max!==null);
+      // When a category is explicitly shown inside a hidden provider/preset
+      // symbol layer, reveal the container but mask all other classes.
+      const edits=restoring?candidates:keys.filter(k=>settings[k].opacity!==null||
+        settings[k].visible!==null||settings[k].zoom.min!==null||settings[k].zoom.max!==null);
       if(!edits.length)continue;
       const originalValue=prior(doc,base,layer,prop,1);
       if(hasZoom(originalValue)&&!(Array.isArray(originalValue)&&
@@ -330,16 +338,17 @@ export function applySemanticFeatureControls(
         for(const k of edits){
           const cfg=settings[k];
           const disabled=cfg.visible===false||
+            restoring&&cfg.visible!==true||
             cfg.zoom.min!==null&&z<cfg.zoom.min||
             cfg.zoom.max!==null&&z>=cfg.zoom.max;
-          let altered:JsonValue=disabled?0:cfg.opacity===null?stop:
+          const altered:JsonValue=disabled?0:cfg.opacity===null?stop:
             typeof stop==="number"?Number((stop*cfg.opacity/100).toFixed(5)):
               ["*",stop,cfg.opacity/100];
           if(altered===stop)continue;
           statements.push(selector(layer,k),altered);
         }
-        if(!statements.length)return stop;
-        return ["case",...statements,stop];
+        if(!statements.length)return restoring?0:stop;
+        return ["case",...statements,restoring?0:stop];
       });
       const result:JsonValue=safeStops.length===1?outputAt(0):
         ["step",["zoom"],outputAt(0),...safeStops.slice(1).flatMap(z=>[z,outputAt(z)])];
