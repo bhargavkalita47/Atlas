@@ -267,6 +267,15 @@ export function getAtlasPresetAdvancedSettings(id:string,paletteOverride:Advance
       if(id==="high-contrast"||id==="accessibility-dark"||id==="accessibility-light"){
         item.outline=true;item.halo=false;
       }
+      // CRT and neon-arcade presets use a controlled luminous text treatment;
+      // archival retro themes keep crisp print-like outlines instead.
+      if(id==="eighties-grid"||id==="arcade"||id==="analog-crt"){
+        item.outline=false;
+        item.halo=role==="city"||role==="locality";
+      }
+      if(id==="film-noir"){
+        item.outline=false;item.halo=false;
+      }
     }
   }
   result.labels.city.zoom.min=5;
