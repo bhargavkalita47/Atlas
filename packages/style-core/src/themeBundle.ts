@@ -50,6 +50,9 @@ const isPercent=(v:unknown)=>typeof v==="number"&&Number.isFinite(v)&&v>=0&&v<=1
 const isZoom=(v:unknown)=>typeof v==="number"&&Number.isFinite(v)&&v>=0&&v<=24;
 const isZoomOrNull=(v:unknown)=>v===null||isZoom(v);
 const isHexOrNull=(v:unknown)=>v===null||isHex(v);
+const isNumberOrNull=(v:unknown,min:number,max:number)=>v===null||(typeof v==="number"&&Number.isFinite(v)&&v>=min&&v<=max);
+const isFlagOrNull=(v:unknown)=>v===null||typeof v==="boolean";
+const isDash=(v:unknown)=>v==="inherit"||v==="solid"||v==="dashed";
 function checkOverrides(bundle:Record<string,unknown>):boolean{
   const detail=bundle.detailOverrides;
   if(!objectKeys(detail,["roads","features"])||
@@ -80,8 +83,15 @@ function checkOverrides(bundle:Record<string,unknown>):boolean{
         if(v.zoom!==undefined&&(!objectKeys(v.zoom,["min","max"])||Object.values(v.zoom).some(x=>!isZoomOrNull(x))))return false;
         if(v.color!==undefined&&!isHexOrNull(v.color))return false;
         if(v.outlineColor!==undefined&&!isHexOrNull(v.outlineColor))return false;
-        if(v.visible!==undefined&&v.visible!==null&&typeof v.visible!=="boolean")return false;
-        if(v.fontStack!==undefined&&v.fontStack!==null&&(!Array.isArray(v.fontStack)||v.fontStack.some(x=>typeof x!=="string"||x.length>256)))return false;
+        if(v.visible!==undefined&&!isFlagOrNull(v.visible))return false;
+        for(const field of kind==="roads"?["width","outlineWidth"]:["sizeScale","spacing"]){
+          const value=v[field];
+          if(value!==undefined&&!isNumberOrNull(value,field==="spacing"?-5:0,field==="spacing"?5:100))return false;
+        }
+        if(v.dash!==undefined&&!isDash(v.dash))return false;
+        if(v.halo!==undefined&&!isFlagOrNull(v.halo))return false;
+        if(v.outline!==undefined&&!isFlagOrNull(v.outline))return false;
+        if(v.fontStack!==undefined&&v.fontStack!==null&&(!Array.isArray(v.fontStack)||v.fontStack.length>15||v.fontStack.some(x=>typeof x!=="string"||x.length>256)))return false;
       }
     }
   }
@@ -89,10 +99,14 @@ function checkOverrides(bundle:Record<string,unknown>):boolean{
   if(!objectKeys(semantic,SEMANTIC_KEYS))return false;
   for(const v of Object.values(semantic)){
     if(!objectKeys(v,["color","opacity","visible","width","outlineColor","dash","iconSize","heightScale","zoom"]))return false;
-    if(v.color!==undefined&&!isHex(v.color))return false;
-    if(v.outlineColor!==undefined&&!isHex(v.outlineColor))return false;
-    if(v.visible!==undefined&&typeof v.visible!=="boolean")return false;
-    if(v.zoom!==undefined&&(!objectKeys(v.zoom,["min","max"])||Object.values(v.zoom).some(x=>!isZoom(x))))return false;
+    if(v.color!==undefined&&!isHexOrNull(v.color))return false;
+    if(v.outlineColor!==undefined&&!isHexOrNull(v.outlineColor))return false;
+    if(v.visible!==undefined&&!isFlagOrNull(v.visible))return false;
+    if(v.dash!==undefined&&!isDash(v.dash))return false;
+    for(const field of ["opacity","width","iconSize","heightScale"]){
+      if(v[field]!==undefined&&!isNumberOrNull(v[field],0,field==="opacity"?100:100))return false;
+    }
+    if(v.zoom!==undefined&&(!objectKeys(v.zoom,["min","max"])||Object.values(v.zoom).some(x=>!isZoomOrNull(x))))return false;
   }
   return true;
 }
