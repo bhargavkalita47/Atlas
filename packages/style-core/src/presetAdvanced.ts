@@ -52,7 +52,7 @@ export function deriveAdvancedOverrides(baseline:AdvancedStyleSettings,desired:A
   for(const role of LABEL_ROLES){
     const from=baseline.labels[role],to=desired.labels[role];
     const diff:Partial<LabelDesign>={};
-    for(const key of ["color","sizeScale","spacing","fontStack","visible"] as const)
+    for(const key of ["color","sizeScale","spacing","fontStack","visible","outline","halo"] as const)
       if(!eq(from[key],to[key]))(diff as Record<string,unknown>)[key]=clone(to[key]);
     const z:Partial<ZoomRange>={};
     if(from.zoom.min!==to.zoom.min)z.min=to.zoom.min;

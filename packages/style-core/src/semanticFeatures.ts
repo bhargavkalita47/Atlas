@@ -318,6 +318,13 @@ export function applySemanticFeatureControls(
       for(const k of edits)for(const z of [settings[k].zoom.min,settings[k].zoom.max])
         if(z!==null)steps.add(z);
       const stops=[...steps].sort((a,b)=>a-b);
+      // Zoom can appear only as the direct input of a top-level
+      // interpolate/step. Do not nest provider zoom expressions inside
+      // another step just to force a per-class visibility threshold.
+      if(stops.length>1&&hasZoom(originalValue)){
+        warnings.push("Per-feature zoom thresholds require a numeric opacity in "+layer.id);
+      }
+      const safeStops=hasZoom(originalValue)?[0]:stops;
       const outputAt=(z:number):JsonValue=>zoomOutput(originalValue,stop=>{
         const statements:JsonValue[]=[];
         for(const k of edits){
@@ -334,14 +341,17 @@ export function applySemanticFeatureControls(
         if(!statements.length)return stop;
         return ["case",...statements,stop];
       });
-      const result:JsonValue=stops.length===1?outputAt(0):
-        ["step",["zoom"],outputAt(0),...stops.slice(1).flatMap(z=>[z,outputAt(z)])];
+      const result:JsonValue=safeStops.length===1?outputAt(0):
+        ["step",["zoom"],outputAt(0),...safeStops.slice(1).flatMap(z=>[z,outputAt(z)])];
       paint(doc,layer.id,prop,result);
     }
     if(layer.type==="symbol"&&isObj(base.layout)&&base.layout["icon-image"]!==undefined){
       const edits=keys.filter(k=>settings[k].iconSize!==null);
       if(edits.length){
-        const originalSize=prior(doc,base,layer,"icon-size",1);
+        const originalSize=(doc.layers[layer.id]?.layout?.["icon-size"]??(
+          isObj(base.layout)&&base.layout["icon-size"]!==undefined?
+            clone(base.layout["icon-size"] as JsonValue):1
+        )) as JsonValue;
         // icon-size is a layout property, and can be zoom/data driven.
         const value=zoomOutput(originalSize,stop=>{
           const values:JsonValue[]=[];
