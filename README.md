@@ -1,5 +1,7 @@
 # Atlas
 
+[Open Atlas Lab on Cloudflare Workers](https://atlas.bhargavkalita1327.workers.dev/)
+
 Atlas is a reusable TypeScript mapping toolkit with Atlas Lab, an interactive playground for testing maps and designing visual themes. It pairs MapLibre vector rendering with a Leaflet raster option and supports OpenStreetMap-derived tiles without a paid API key.
 
 **Stage:** pre-release. Atlas Lab is the current design and customisation surface. Shikshak uses the Atlas Pastel City recipe and a pinned snapshot of the style compiler. CivicWatch uses its own map implementation.
