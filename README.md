@@ -1,10 +1,10 @@
 # Atlas
 
-[Open Atlas Lab on Cloudflare Workers](https://atlas.bhargavkalita1327.workers.dev/)
+[Open Atlas Lab](https://atlas.bhargavkalita1327.workers.dev/)
 
-Atlas is a reusable TypeScript mapping toolkit with Atlas Lab, an interactive playground for testing maps and designing visual themes. It pairs MapLibre vector rendering with a Leaflet raster option and supports OpenStreetMap-derived tiles without a paid API key.
+Atlas is a mapping toolkit for creating and reusing map styles. Open Atlas Lab to choose a theme, adjust roads and labels, add markers or shapes, and export a PNG, SVG or reusable theme JSON. The toolkit supports MapLibre vector maps, Leaflet raster maps and OpenStreetMap-derived tiles.
 
-**Stage:** pre-release. Atlas Lab is the current design and customisation surface. Shikshak uses the Atlas Pastel City recipe and a pinned snapshot of the style compiler. CivicWatch uses its own map implementation.
+[Shikshak](https://shikshak.co.in/) uses the Atlas Pastel City theme on its tutor discovery and home-area maps.
 
 ## Project timeline
 
@@ -17,7 +17,7 @@ Atlas is a reusable TypeScript mapping toolkit with Atlas Lab, an interactive pl
 | November · [Portable themes and exports](https://github.com/bhargavkalita47/Atlas/pull/4) | Added PNG and SVG viewport export, validated JSON theme bundles, and a reusable resolver for applying the same theme in another app. |
 | 10 November · [Shikshak integration](https://github.com/Bhargav-shikshak/shikshak/pull/8) | Shikshak merged the MapLibre migration and used the Atlas compiler to reproduce the Pastel City preset on its discovery and home-area maps. |
 
-**Today:** A pre-release mapping toolkit and style studio with reusable themes and two browser renderers.
+**Today:** Atlas Lab supports map styling, geometry tools and portable theme exports. The toolkit provides reusable React adapters for vector and raster maps.
 
 ## Engineering challenges and solutions
 
