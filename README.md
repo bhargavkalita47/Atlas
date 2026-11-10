@@ -1,10 +1,20 @@
-# Atlas
+# Atlas — Open-Source Mapping Toolkit
 
-[Open Atlas Lab](https://atlas.bhargavkalita1327.workers.dev/)
+[Open Atlas Lab](https://atlas.bhargavkalita1327.workers.dev/) · [View architecture](docs/ARCHITECTURE.md)
 
-Atlas is a mapping toolkit for creating and reusing map styles. Open Atlas Lab to choose a theme, adjust roads and labels, add markers or shapes, and export a PNG, SVG or reusable theme JSON. The toolkit supports MapLibre vector maps, Leaflet raster maps and OpenStreetMap-derived tiles.
+Atlas is a reusable mapping toolkit and visual style editor for applications that need a distinctive, configurable map without coupling their interface to a single mapping provider. Atlas Lab lets users customise map features, typography, geometry and themes, and export their work as images or portable theme configurations.
 
-[Shikshak](https://shikshak.co.in/) uses the Atlas Pastel City theme on its tutor discovery and home-area maps.
+## Product capabilities
+
+- Interactive MapLibre vector and Leaflet raster maps with OpenStreetMap-derived data.
+- Semantic styling of major roads, residential streets, buildings, parks, water and labels.
+- Curated themes, feature controls, geometry tools, markers, measurement and GeoJSON.
+- PNG, SVG and reusable JSON theme export.
+- Reusable React adapters and a style compiler for integrating the same map theme into other applications.
+
+**Real integration:** [Shikshak](https://shikshak.co.in/) uses Atlas Pastel City for tutor discovery and home-area maps.
+
+**Stack:** TypeScript · React · MapLibre GL JS · Leaflet · OpenFreeMap · Vite · Playwright · Cloudflare Workers
 
 ## Project timeline
 
