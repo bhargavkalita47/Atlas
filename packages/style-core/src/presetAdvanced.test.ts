@@ -27,9 +27,9 @@ const provider={
 };
 type L={id:string,paint?:Record<string,unknown>,layout?:Record<string,unknown>,minzoom?:number};
 const layer=(style:Record<string,unknown>,id:string)=>(style.layers as unknown as L[]).find(x=>x.id===id)!;
-describe("All 81 cartographic presets v4",()=>{
+describe("All 85 cartographic presets v4",()=>{
   it("has a valid and independent advanced design profile for every preset",()=>{
-    expect(ATLAS_STYLE_PRESETS.length).toBe(81);
+    expect(ATLAS_STYLE_PRESETS.length).toBe(85);
     expect(ATLAS_ADVANCED_PROFILE_VERSION).toBe(4);
     const fingerprints=new Set<string>();
     for(const preset of ATLAS_STYLE_PRESETS){
@@ -45,7 +45,7 @@ describe("All 81 cartographic presets v4",()=>{
       another.roads.primary.width=24;
       expect(getAtlasPresetAdvancedSettings(preset.id).roads.primary.width).not.toBe(24);
     }
-    expect(fingerprints.size).toBe(81);
+    expect(fingerprints.size).toBe(85);
   });
   it("preserves intended differences between navigation, hiking, minimal and futuristic themes",()=>{
     const nav=getAtlasPresetAdvancedSettings("navigation");

@@ -5,7 +5,7 @@ import {
 } from "./semanticFeatures";
 
 /**
- * Atlas semantic cartography recipe v1. Every one of the 81 curated themes
+ * Atlas semantic cartography recipe v1. Every one of the 85 curated themes
  * receives its own feature palette, opacity hierarchy and provider-aware
  * optional detailing. This is a design recipe, not a new tile source.
  */
@@ -77,6 +77,16 @@ const family:Record<Family,Recipe>={
 };
 type FeaturePatch=Partial<Omit<FeatureDesign,"zoom">>&{zoom?:Partial<FeatureZoom>};
 const named:Record<string,Partial<Record<SemanticFeature,FeaturePatch>>>={
+  "civicwatch-lavender":{buildings:{opacity:62},gardens:{opacity:78},
+    poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:28}},
+  "civicwatch-coral-paper":{buildings:{opacity:58},gardens:{opacity:80},
+    poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:27}},
+  "civicwatch-clear-streets":{buildings:{opacity:50},waterBodies:{opacity:100},
+    rivers:{width:1.9},poiFood:{visible:false},poiShopping:{visible:false},
+    poiTransit:{opacity:65},localBorders:{opacity:35}},
+  "civicwatch-night-teal":{buildings:{opacity:54},forests:{opacity:55},
+    railways:{opacity:65},poiFood:{visible:false},poiShopping:{visible:false},
+    poiLandmarks:{visible:false},localBorders:{opacity:28}},
   "minimal-light":{buildings:{opacity:42},poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:23}},
   "minimal-dark":{buildings:{opacity:47},poiFood:{visible:false},poiShopping:{visible:false},localBorders:{opacity:19}},
   "pastel-city":{gardens:{opacity:96},buildings:{opacity:88},poiFood:{iconSize:1.12},poiShopping:{iconSize:1.08}},

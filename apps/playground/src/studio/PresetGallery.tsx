@@ -40,11 +40,11 @@ function DetailBars({preset}:{preset:AtlasPresetDefinition}){
   </span>;
 }
 export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Props){
-  const [family,setFamily]=useState<Family|"all">("all");
+  const [family,setFamily]=useState<Family|"all"|"civicwatch">("all");
   const [search,setSearch]=useState("");
   const [visible,setVisible]=useState(12);
   const matching=useMemo(()=>ATLAS_STYLE_PRESETS.filter(p=>
-    (family==="all"||p.family===family)&&
+    (family==="all"||(family==="civicwatch"?p.collection==="civicwatch":p.family===family))&&
     (!search||[p.name,p.summary,p.family].some(s=>s.toLowerCase().includes(search.trim().toLowerCase())))
   ),[family,search]);
   return <section className="pane-section atlas-preset-section">
@@ -61,6 +61,9 @@ export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Prop
     <div className="atlas-preset-categories" role="group" aria-label="Preset categories">
       <button type="button" aria-pressed={family==="all"} className={family==="all"?"selected":""}
         onClick={()=>{setFamily("all");setVisible(12);}}>All</button>
+      <button type="button" aria-pressed={family==="civicwatch"}
+        className={family==="civicwatch"?"selected":""}
+        onClick={()=>{setFamily("civicwatch");setVisible(12);}}>CivicWatch</button>
       {familyOrder.map(value=><button type="button" key={value} aria-pressed={family===value}
         className={family===value?"selected":""}
         onClick={()=>{setFamily(value);setVisible(12);}}>{FAMILY_NAMES[value]}</button>)}
@@ -72,14 +75,14 @@ export function PresetGallery({activePresetId,basePresetId,palette,onApply}:Prop
         key={preset.id}
         aria-label={"Apply "+preset.name+" preset"}
         aria-pressed={activePresetId===preset.id}
-        className={"atlas-preset-card"+(basePresetId===preset.id?" is-active":"")}
+        className={"atlas-preset-card"+(preset.collection==="civicwatch"?" is-civicwatch":"")+(basePresetId===preset.id?" is-active":"")}
         onClick={()=>onApply(preset.id)}
       >
         <Preview preset={preset} palette={palette}/>
         <span className="atlas-preset-card-copy">
           <strong>{preset.name}</strong>
           <small>{preset.summary}</small>
-          <span className="atlas-preset-card-meta">{FAMILY_NAMES[preset.family]} · {preset.baseStyle} recipe</span>
+          <span className="atlas-preset-card-meta">{preset.collection==="civicwatch"?"CivicWatch collection · ":""}{FAMILY_NAMES[preset.family]} · {preset.baseStyle} recipe</span>
           <DetailBars preset={preset}/>
         </span>
         {basePresetId===preset.id&&<span className="atlas-preset-selected" aria-hidden="true"><Check size={13}/></span>}

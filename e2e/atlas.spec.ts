@@ -338,7 +338,7 @@ test("warm Atlas Studio presets switch across base recipes without style reload"
   await page.goto("/");
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await page.getByRole("button",{name:"Style studio"}).click();
-  await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("81 presets prepared in memory");
+  await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("85 presets prepared in memory");
   await page.evaluate(()=>{(window as Window & {atlasCachedCanvas?:Element|null}).atlasCachedCanvas=document.querySelector(".maplibregl-canvas");});
   await page.waitForLoadState("networkidle");
   const before=styleRequests;
@@ -484,7 +484,7 @@ test("curated road type and zoom profiles follow presets while manual edits surv
   });
   await page.goto("/");
   await page.getByRole("button",{name:"Style studio"}).click();
-  await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("81 presets prepared in memory");
+  await expect(page.getByRole("status",{name:"Atlas preset cache status"})).toContainText("85 presets prepared in memory");
   await page.waitForLoadState("networkidle");
   const before=styleRequests;
   await page.getByRole("tab",{name:"Roads",exact:true}).click();
@@ -596,7 +596,7 @@ test("Atlas Lab navigation keeps the map mounted and allows text outline and hal
   await page.getByRole("tab",{name:"Roads",exact:true}).click();
   await expect(page.locator('section[aria-label="Advanced road styling"]')).toBeVisible();
   await page.getByRole("tab",{name:"Themes",exact:true}).click();
-  await expect(page.locator(".atlas-preset-total")).toContainText("81 themes");
+  await expect(page.locator(".atlas-preset-total")).toContainText("85 themes");
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
 });
 
@@ -653,7 +653,7 @@ test("Reset everything restores all Style Studio settings and retains map conten
   await expect(page.locator(".atlas-vector-pin")).toHaveCount(3);
 });
 
-test("81 semantic presets recolour the feature library without reloading the vector map",async({page})=>{
+test("85 semantic presets recolour the feature library without reloading the vector map",async({page})=>{
   let requests=0;
   await page.route("https://tiles.openfreemap.org/styles/**",async route=>{
     requests++;
@@ -681,4 +681,24 @@ test("81 semantic presets recolour the feature library without reloading the vec
   await expect(page.getByLabel("Forests & woodland theme colour")).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   expect(requests).toBe(previousRequests);
+});
+
+
+test("CivicWatch presets are filterable and selectable without replacing the map",async({page})=>{
+  await page.goto("/");
+  const map=page.locator(".maplibregl-canvas");
+  await expect(map).toBeVisible();
+  await page.getByRole("button",{name:"Style studio"}).click();
+  await page.getByRole("button",{name:"CivicWatch",exact:true}).click();
+  const cards=page.locator(".atlas-preset-card");
+  await expect(cards).toHaveCount(4);
+  for(const name of ["CivicWatch Lavender","CivicWatch Coral Paper",
+    "CivicWatch Clear Streets","CivicWatch Night Teal"]){
+    await expect(page.getByRole("button",{name:"Apply "+name+" preset"})).toBeVisible();
+  }
+  await page.getByRole("button",{name:"Apply CivicWatch Night Teal preset"}).click();
+  await expect(page.getByRole("button",{name:"Apply CivicWatch Night Teal preset"}))
+    .toHaveAttribute("aria-pressed","true");
+  await expect(page.locator(".atlas-preset-status")).toContainText("CivicWatch Night Teal");
+  await expect(map).toHaveCount(1);
 });
