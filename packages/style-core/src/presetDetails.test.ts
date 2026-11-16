@@ -14,9 +14,9 @@ const style=()=>({
     {id:"road-label",type:"symbol",source:"osm","source-layer":"transportation_name",paint:{"text-halo-width":2,"text-halo-blur":1}},
   ]
 });
-describe("Atlas 81 curated detail profiles v2",()=>{
+describe("Atlas 85 curated detail profiles v2",()=>{
   it("covers every shipped preset with bounded independently editable values",()=>{
-    expect(ATLAS_STYLE_PRESETS.length).toBe(81);
+    expect(ATLAS_STYLE_PRESETS.length).toBe(85);
     expect(ATLAS_DETAIL_PROFILE_VERSION).toBe(2);
     for(const preset of ATLAS_STYLE_PRESETS){
       const profile=getAtlasPresetDetailSettings(preset.id);

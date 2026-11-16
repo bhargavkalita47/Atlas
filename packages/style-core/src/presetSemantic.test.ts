@@ -10,10 +10,10 @@ import {SEMANTIC_PROVIDER_FIXTURES} from "./semanticProviderFixtures";
 import {compileAtlasStyle,inspectStyleLayers,validateStyleDocument} from "./index";
 const clone=<T>(v:T):T=>JSON.parse(JSON.stringify(v)) as T;
 
-describe("81 Stage 3 semantic theme recipes",()=>{
- it("authors 81 independent valid maps with 23 coloured feature classes",()=>{
+describe("85 Stage 3 semantic theme recipes",()=>{
+ it("authors 85 independent valid maps with 23 coloured feature classes",()=>{
    expect(ATLAS_SEMANTIC_PROFILE_VERSION).toBe(1);
-   expect(ATLAS_STYLE_PRESETS).toHaveLength(81);
+   expect(ATLAS_STYLE_PRESETS).toHaveLength(85);
    const fingerprints=new Set<string>();
    for(const p of ATLAS_STYLE_PRESETS){
      const result=getAtlasPresetSemanticSettings(p.id);
@@ -28,7 +28,7 @@ describe("81 Stage 3 semantic theme recipes",()=>{
      result.forests.color="#ABCD12";
      expect(getAtlasPresetSemanticSettings(p.id).forests.color).not.toBe("#ABCD12");
    }
-   expect(fingerprints.size).toBe(81);
+   expect(fingerprints.size).toBe(85);
  });
  it("gives contrasting geographic priorities to actual theme purposes",()=>{
    const minimal=getAtlasPresetSemanticSettings("minimal-light"),

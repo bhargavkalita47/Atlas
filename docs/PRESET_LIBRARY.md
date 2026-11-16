@@ -1,6 +1,6 @@
 # Atlas Preset Library and Auto Palette Reskin
 
-The Atlas Style Studio now offers **81 curated presets** built on the four existing
+The Atlas Style Studio now offers **85 curated presets** built on the four existing
 OpenFreeMap vector starting styles: Positron, Liberty, Bright, and Dark.
 
 All presets are assembled with the current v2 authoring format, using semantic
@@ -12,6 +12,9 @@ library.
 ## Explore the library
 
 In Atlas Lab, open **Style Studio → Atlas Preset Library**.
+
+The eight searchable families are joined by a dedicated **CivicWatch** collection
+of four styles. Choose **CivicWatch** in the gallery filter to see them together.
 
 The eight searchable families are:
 
