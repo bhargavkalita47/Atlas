@@ -25,6 +25,7 @@ export type AtlasPresetDefinition={
   readonly name:string;
   readonly summary:string;
   readonly family:"minimal"|"editorial"|"expressive"|"utility"|"nature"|"travel"|"retro"|"futuristic";
+  readonly collection?:"civicwatch";
   readonly baseStyle:BaseId;
   readonly palette:Palette;
   readonly settings?:Readonly<{
@@ -132,7 +133,50 @@ const ADDITIONAL_PRESETS:readonly AtlasPresetDefinition[]=ADDITIONAL_SEEDS.map(
   })
 );
 
+ 
+/* CivicWatch companions: background geography recedes behind issue pins.
+ * All four use existing vector providers and preserve marker colours. */
+export const CIVICWATCH_STYLE_PRESETS:readonly AtlasPresetDefinition[]=[
+  {
+    id:"civicwatch-lavender",name:"CivicWatch Lavender",
+    summary:"Lavender neighbourhoods, cool waterways, quiet streets.",
+    collection:"civicwatch",family:"editorial",baseStyle:"positron",
+    palette:{land:"#F9F6FE",water:"#D7E8F2",parks:"#DCECE0",
+      roads:"#FFFFFF",buildings:"#E7DDF3",labels:"#302B43",
+      boundaries:"#BCA8CF",transit:"#9E84C0",poi:"#607986"},
+    settings:{buildingsOpacity:.67,boundariesOpacity:.55,poiVisible:false}
+  },
+  {
+    id:"civicwatch-coral-paper",name:"CivicWatch Coral Paper",
+    summary:"Warm paper, blush buildings and coral-friendly context.",
+    collection:"civicwatch",family:"editorial",baseStyle:"positron",
+    palette:{land:"#FBF7F4",water:"#CFE5E6",parks:"#DCE9DA",
+      roads:"#FFFFFF",buildings:"#EFDFDE",labels:"#352D38",
+      boundaries:"#D4B9B8",transit:"#BD8885",poi:"#79676D"},
+    settings:{buildingsOpacity:.60,boundariesOpacity:.55,poiVisible:false}
+  },
+  {
+    id:"civicwatch-clear-streets",name:"CivicWatch Clear Streets",
+    summary:"Readable city streets, muted teal and cool green detail.",
+    collection:"civicwatch",family:"utility",baseStyle:"positron",
+    palette:{land:"#F4F8F7",water:"#B9DDE0",parks:"#CCE6DE",
+      roads:"#FFFFFF",buildings:"#DDE9E7",labels:"#213F47",
+      boundaries:"#9EBDC0",transit:"#498D91",poi:"#4F7277"},
+    settings:{buildingsOpacity:.50,boundariesOpacity:.66,poiVisible:false}
+  },
+  {
+    id:"civicwatch-night-teal",name:"CivicWatch Night Teal",
+    summary:"Deep teal blocks, calm roads and crisp pale labels.",
+    collection:"civicwatch",family:"minimal",baseStyle:"dark",
+    palette:{land:"#0B262D",water:"#17444E",parks:"#193B38",
+      roads:"#55767D",buildings:"#173840",labels:"#EAF5F4",
+      boundaries:"#64848D",transit:"#49C3BC",poi:"#B6D8D6"},
+    settings:{buildingsOpacity:.50,boundariesOpacity:.50,labelsOpacity:1,poiVisible:false}
+  }
+];
+
 export const ATLAS_STYLE_PRESETS:readonly AtlasPresetDefinition[]=[
+  ...CIVICWATCH_STYLE_PRESETS,
   {
     id:"minimal-light",name:"Minimal Light",summary:"Quiet streets, airy neutrals.",
     family:"minimal",baseStyle:"positron",

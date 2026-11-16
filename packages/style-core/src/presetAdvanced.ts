@@ -111,6 +111,16 @@ type Patch={
 };
 /** Character-defining exceptions layered over the family and detail profile. */
 const special:Record<string,Patch>={
+  "civicwatch-lavender":{road:{local:{width:1.05},paths:{width:.6}},
+    label:{city:{sizeScale:1.12,spacing:.025},locality:{sizeScale:1.03},
+      road:{sizeScale:.93},poi:{visible:false}}},
+  "civicwatch-coral-paper":{road:{primary:{width:2.65},local:{width:1.05},paths:{width:.55}},
+    label:{city:{sizeScale:1.1},road:{sizeScale:.94},poi:{visible:false}}},
+  "civicwatch-clear-streets":{road:{primary:{width:3.2},secondary:{width:2.2},local:{width:1.4},paths:{width:.9}},
+    label:{city:{sizeScale:1.16},locality:{sizeScale:1.08},road:{sizeScale:1.1},poi:{visible:false}},
+    feature:{buildings:{min:14}}},
+  "civicwatch-night-teal":{road:{primary:{width:2.7},secondary:{width:1.65},local:{width:1},paths:{width:.55}},
+    label:{city:{sizeScale:1.18},locality:{sizeScale:1.02},road:{sizeScale:1},poi:{visible:false}}},
   "minimal-light":{road:{local:{width:.7},paths:{width:.5}},label:{poi:{visible:false},city:{spacing:.025}}},
   "minimal-dark":{road:{local:{width:.6},paths:{width:.45}},label:{poi:{visible:false},city:{sizeScale:1.12}}},
   "paper-ink":{road:{primary:{width:2.6},local:{width:1.2}},label:{city:{spacing:.055}}},

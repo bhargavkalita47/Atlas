@@ -51,6 +51,18 @@ const familyProfiles:Record<Family,DetailPatch>={
  * defaults still cover additions to the collection.
  */
 const refinements:Record<string,DetailPatch>={
+  "civicwatch-lavender":{roads:{motorway:95,primary:90,secondary:78,local:55,paths:30},
+    features:{buildings:{opacity:58},parks:{opacity:78},roadLabels:{opacity:90},
+      poi:{visible:false},boundaries:{opacity:42},transit:{opacity:45}}},
+  "civicwatch-coral-paper":{roads:{motorway:95,primary:92,secondary:75,local:52,paths:28},
+    features:{buildings:{opacity:52},parks:{opacity:85},roadLabels:{opacity:90},
+      poi:{visible:false},boundaries:{opacity:42},transit:{opacity:38}}},
+  "civicwatch-clear-streets":{roads:{motorway:100,primary:100,secondary:93,local:82,paths:48},
+    features:{buildings:{opacity:42},parks:{opacity:90},placeLabels:{opacity:100},
+      roadLabels:{opacity:100},poi:{visible:false},transit:{opacity:65},terrain:{visible:false}}},
+  "civicwatch-night-teal":{roads:{motorway:95,primary:92,secondary:78,local:65,paths:28},
+    features:{buildings:{opacity:50},parks:{opacity:58},roadLabels:{opacity:92},
+      poi:{visible:false},boundaries:{opacity:42},transit:{opacity:55}}},
   "minimal-light":{roads:{local:35,paths:15},features:{buildings:{opacity:30},transit:{visible:false}}},
   "minimal-dark":{roads:{local:30,paths:10},features:{buildings:{opacity:35},transit:{visible:false}}},
   "paper-ink":{roads:{local:70,paths:55},features:{parks:{opacity:80},boundaries:{opacity:65}}},

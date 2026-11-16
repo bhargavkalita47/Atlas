@@ -303,7 +303,7 @@ export function stringifyAtlasStyleDocument(document:AtlasStyleDocument):string{
   return JSON.stringify(canonical(document as unknown as JsonValue),null,2);
 }
 
-export {ATLAS_STYLE_PRESETS,getAtlasPreset,getAtlasPresetCoreColors,createAtlasPresetDocument} from "./presets";
+export {ATLAS_STYLE_PRESETS,CIVICWATCH_STYLE_PRESETS,getAtlasPreset,getAtlasPresetCoreColors,createAtlasPresetDocument} from "./presets";
 export {getAtlasPresetDetailSettings,ATLAS_DETAIL_PROFILE_VERSION} from "./presetDetails";
 export type {AtlasPresetDefinition,AtlasPresetId,AtlasPresetDocumentOptions} from "./presets";
 
